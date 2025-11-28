@@ -1,0 +1,74 @@
+services:
+  api:
+    build: .
+    container_name: cert-service-api
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DEBUG: "false"
+    depends_on:
+      - redis
+    volumes:
+      - ./app:/app/app
+      - ./temp:/app/temp
+      - ./data:/app/data
+    networks:
+      - cert-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  redis:
+    image: redis
+    container_name: cert-service-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - cert-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build: .
+    container_name: cert-service-worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - redis
+    volumes:
+      - ./app:/app/app
+      - ./temp:/app/temp
+      - ./data:/app/data
+    networks:
+      - cert-network
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+
+  # celery-beat:
+  #   build: .
+  #   container_name: cert-service-beat
+  #   environment:
+  #     REDIS_URL: redis://redis:6379/0
+  #     CELERY_BROKER_URL: redis://redis:6379/1
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
+  #   depends_on:
+  #     - redis
+  #   volumes:
+  #     - ./app:/app/app
+  #   networks:
+  #     - cert-network
+  #   command: celery -A app.tasks.celery_app beat --loglevel=info
+
+volumes:
+  redis-data:
+
+networks:
+  cert-network:
+    driver: bridge
