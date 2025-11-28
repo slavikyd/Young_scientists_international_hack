@@ -1,7 +1,8 @@
 class TemplatesManager {
     constructor() {
         this.editingId = null;
-        this.templates = [];
+        this.loadedFile = null;
+        this.isCreating = false;
         this.init();
     }
 
@@ -16,12 +17,25 @@ class TemplatesManager {
         document.getElementById('insertCodeBtn').addEventListener('click', () => this.insertCode());
         document.getElementById('deleteFileBtn').addEventListener('click', () => this.deleteFile());
         document.getElementById('templateFileInput').addEventListener('change', (e) => this.handleTemplateFile(e));
+        document.getElementById('fileUploadArea').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            document.getElementById('fileUploadArea').classList.add('dragover');
+        });
+        document.getElementById('fileUploadArea').addEventListener('dragleave', () => {
+            document.getElementById('fileUploadArea').classList.remove('dragover');
+        });
+        document.getElementById('fileUploadArea').addEventListener('drop', (e) => {
+            e.preventDefault();
+            document.getElementById('fileUploadArea').classList.remove('dragover');
+            this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
+        });
+        document.getElementById('fileUploadArea').addEventListener('click', () => this.chooseFile());
         
         document.getElementById('previewBackdrop').addEventListener('click', () => this.closePreviewModal());
         document.getElementById('previewClose').addEventListener('click', () => this.closePreviewModal());
         document.getElementById('expandPreviewBtn').addEventListener('click', () => this.openFullPreview());
+        document.getElementById('templateContent').addEventListener('input', () => this.updateCodePreview());
 
-        // Load default templates
         this.loadDefaultTemplates();
         this.renderTemplates();
     }
@@ -54,21 +68,20 @@ class TemplatesManager {
 
     renderTemplates() {
         const grid = document.getElementById('templatesGrid');
-        grid.innerHTML = AppState.templates.map(template => `
-            <div class="template-card">
+        grid.innerHTML = AppState.templates.map((template, idx) => `
+            <div class="template-card" data-template-id="${template.id}">
                 <div class="template-card-header">
                     <div class="template-icon">${template.type === 'html' ? '</>' : '📄'}</div>
                     <div class="template-info">
                         <div class="template-name">${template.name}</div>
                         <div class="template-type">${template.type.toUpperCase()}</div>
                     </div>
-                    <button class="menu-btn" data-template-id="${template.id}">⋮</button>
                 </div>
                 ${AppState.selectedTemplate === template.id ? '<div class="template-is-selected">✓</div>' : ''}
+                <button class="menu-btn" data-template-id="${template.id}">⋮</button>
             </div>
         `).join('');
 
-        // Attach menu listeners
         document.querySelectorAll('.menu-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -77,13 +90,14 @@ class TemplatesManager {
             });
         });
 
-        // Attach card click listeners for selection
-        document.querySelectorAll('.template-card').forEach((card, idx) => {
+        document.querySelectorAll('.template-card').forEach((card) => {
             card.addEventListener('click', () => {
-                const template = AppState.templates[idx];
+                const templateId = card.getAttribute('data-template-id');
+                const template = AppState.templates.find(t => t.id === templateId);
                 AppState.selectTemplate(template.id);
                 this.renderTemplates();
                 ui.updateGeneratePreview();
+                ui.enableNextSteps('generate');
             });
         });
     }
@@ -94,11 +108,17 @@ class TemplatesManager {
 
         const menu = document.createElement('div');
         menu.className = 'template-menu';
-        menu.innerHTML = `
-            <button class="template-menu-item" onclick="window.templatesManager.openViewModal('${templateId}')">Открыть просмотр</button>
-            <button class="template-menu-item ${template.isStandard ? 'disabled' : ''}" onclick="window.templatesManager.openEditModal('${templateId}')" ${template.isStandard ? 'disabled' : ''}>Изменить шаблон</button>
-            <button class="template-menu-item delete ${template.isStandard ? 'disabled' : ''}" onclick="window.templatesManager.deleteTemplate('${templateId}')" ${template.isStandard ? 'disabled' : ''}>Удалить</button>
-        `;
+        
+        let menuHTML = `<button class="template-menu-item" onclick="window.templatesManager.openViewModal('${templateId}')">Открыть просмотр</button>`;
+        
+        if (!template.isStandard) {
+            menuHTML += `
+                <button class="template-menu-item" onclick="window.templatesManager.openEditModal('${templateId}')">Изменить шаблон</button>
+                <button class="template-menu-item delete" onclick="window.templatesManager.deleteTemplate('${templateId}')">Удалить</button>
+            `;
+        }
+        
+        menu.innerHTML = menuHTML;
 
         document.body.appendChild(menu);
         const rect = btnElement.getBoundingClientRect();
@@ -116,7 +136,9 @@ class TemplatesManager {
     }
 
     openCreateModal() {
+        this.isCreating = true;
         this.editingId = null;
+        this.loadedFile = null;
         document.getElementById('modalTitle').textContent = 'Создание шаблона';
         document.getElementById('templateName').value = '';
         document.getElementById('templateDesc').value = '';
@@ -125,6 +147,9 @@ class TemplatesManager {
         document.getElementById('fileUploadArea').classList.remove('hidden');
         document.getElementById('loadedFileInfo').classList.add('hidden');
         document.getElementById('templateTypeDisplay').textContent = 'HTML';
+        document.getElementById('templateFileInput').value = '';
+        document.getElementById('templateInputButtons').style.display = 'flex';
+        this.updateCodePreview();
         this.openModal();
     }
 
@@ -132,7 +157,9 @@ class TemplatesManager {
         const template = AppState.templates.find(t => t.id === templateId);
         if (!template) return;
 
+        this.isCreating = false;
         this.editingId = templateId;
+        this.loadedFile = null;
         document.getElementById('modalTitle').textContent = 'Изменение шаблона';
         document.getElementById('templateName').value = template.name;
         document.getElementById('templateDesc').value = template.description || '';
@@ -140,13 +167,18 @@ class TemplatesManager {
         
         if (template.type === 'pdf') {
             document.getElementById('codeEditorSection').classList.add('hidden');
-            document.getElementById('fileUploadArea').classList.add('hidden');
+            document.getElementById('fileUploadArea').classList.remove('hidden');
+            document.getElementById('loadedFileInfo').classList.add('hidden');
+            document.getElementById('templateInputButtons').style.display = 'none';
         } else {
             document.getElementById('templateContent').value = template.content || '';
             document.getElementById('codeEditorSection').classList.remove('hidden');
             document.getElementById('fileUploadArea').classList.add('hidden');
+            document.getElementById('loadedFileInfo').classList.add('hidden');
+            document.getElementById('templateInputButtons').style.display = 'none';
         }
 
+        this.updateCodePreview();
         this.openModal();
     }
 
@@ -154,9 +186,37 @@ class TemplatesManager {
         const template = AppState.templates.find(t => t.id === templateId);
         if (!template) return;
 
+        if (template.type === 'pdf') {
+            alert('Просмотр PDF документов открывается в отдельной программе');
+            return;
+        }
+
         const container = document.getElementById('fullPreviewContainer');
-        container.innerHTML = template.content || '<div style="text-align:center;padding:40px;">Содержимое шаблона</div>';
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.srcdoc = template.content || '';
+        container.innerHTML = '';
+        container.appendChild(iframe);
         document.getElementById('previewModal').classList.remove('hidden');
+    }
+
+    updateCodePreview() {
+        const content = document.getElementById('templateContent').value;
+        const preview = document.getElementById('templatePreview');
+        
+        if (content.trim()) {
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.srcdoc = content;
+            preview.innerHTML = '';
+            preview.appendChild(iframe);
+        } else {
+            preview.innerHTML = `<div class="preview-placeholder">ТУТ БУДЕТ КАКАЯ-НИБУДЬ КРАСИВАЯ КАРТИНКА ШАБЛОНА</div><button class="preview-expand-btn" id="expandPreviewBtn" title="Развернуть">🔲</button>`;
+        }
     }
 
     openModal() {
@@ -166,6 +226,8 @@ class TemplatesManager {
     closeModal() {
         document.getElementById('templateModal').classList.add('hidden');
         this.editingId = null;
+        this.loadedFile = null;
+        this.isCreating = false;
     }
 
     closePreviewModal() {
@@ -173,7 +235,9 @@ class TemplatesManager {
     }
 
     openFullPreview() {
-        this.openViewModal(this.editingId);
+        if (this.editingId) {
+            this.openViewModal(this.editingId);
+        }
     }
 
     chooseFile() {
@@ -191,6 +255,7 @@ class TemplatesManager {
 
         const type = file.name.endsWith('.pdf') ? 'pdf' : 'html';
         document.getElementById('templateTypeDisplay').textContent = type.toUpperCase();
+        this.loadedFile = { file, type };
 
         if (type === 'pdf') {
             document.getElementById('codeEditorSection').classList.add('hidden');
@@ -199,6 +264,7 @@ class TemplatesManager {
             reader.onload = (evt) => {
                 document.getElementById('templateContent').value = evt.target.result;
                 document.getElementById('codeEditorSection').classList.remove('hidden');
+                this.updateCodePreview();
             };
             reader.readAsText(file);
         }
@@ -209,17 +275,19 @@ class TemplatesManager {
     }
 
     deleteFile() {
+        this.loadedFile = null;
         document.getElementById('loadedFileInfo').classList.add('hidden');
         document.getElementById('fileUploadArea').classList.remove('hidden');
         document.getElementById('codeEditorSection').classList.add('hidden');
         document.getElementById('templateContent').value = '';
         document.getElementById('templateFileInput').value = '';
+        document.getElementById('templateTypeDisplay').textContent = 'HTML';
     }
 
     saveTemplate() {
         const name = document.getElementById('templateName').value.trim();
         const desc = document.getElementById('templateDesc').value.trim();
-        const content = document.getElementById('templateContent').value;
+        const content = document.getElementById('templateContent').value.trim();
         const type = document.getElementById('templateTypeDisplay').textContent.toLowerCase();
 
         if (!name) {
@@ -227,10 +295,20 @@ class TemplatesManager {
             return;
         }
 
+        if (type === 'html' && !content) {
+            alert('HTML шаблон не может быть пустым');
+            return;
+        }
+
+        if (type === 'pdf' && !this.loadedFile) {
+            alert('Пожалуйста, загрузите PDF файл');
+            return;
+        }
+
         const template = {
             name,
             description: desc,
-            content,
+            content: type === 'html' ? content : this.loadedFile?.file?.name || null,
             type,
             isDefault: false,
             isStandard: false
@@ -248,6 +326,12 @@ class TemplatesManager {
 
     deleteTemplate(templateId) {
         if (!confirm('Вы уверены? Это удалит шаблон.')) return;
+        
+        if (AppState.selectedTemplate === templateId) {
+            AppState.selectTemplate(null);
+            ui.disableNextSteps('templates-select');
+        }
+        
         AppState.deleteTemplate(templateId);
         this.renderTemplates();
     }

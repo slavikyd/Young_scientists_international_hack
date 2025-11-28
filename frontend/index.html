@@ -33,12 +33,12 @@
                 <span class="step-label">Загрузка файла</span>
             </button>
             <span class="step-arrow">→</span>
-            <button class="step-btn" data-step="templates">
+            <button class="step-btn disabled" data-step="templates">
                 <span class="step-icon">📋</span>
                 <span class="step-label">Выбор шаблона</span>
             </button>
             <span class="step-arrow">→</span>
-            <button class="step-btn" data-step="generate">
+            <button class="step-btn disabled" data-step="generate">
                 <span class="step-icon">⭐</span>
                 <span class="step-label">Генерация</span>
             </button>
@@ -47,7 +47,7 @@
         <!-- Content Pages -->
         <div class="pages-container">
             <!-- Page 1: Upload -->
-            <div class="page" id="upload-page" data-page="upload">
+            <div class="page active" id="upload-page" data-page="upload">
                 <div class="page-content">
                     <div class="page-header-title">
                         <h2>Загрузка файла</h2>
@@ -90,7 +90,7 @@
                         </button>
                     </div>
 
-                    <div class="file-format-info">
+                    <div id="fileFormatInfo" class="file-format-info">
                         <h3>Требуемый формат CSV/XLSX:</h3>
                         <table class="format-table">
                             <thead>
@@ -168,7 +168,11 @@
                             </div>
                             <div class="setting-item hidden" id="recipientsCountItem">
                                 <span class="setting-label">Количество получателей</span>
-                                <span class="setting-value" id="previewRecipients">90</span>
+                                <div class="recipients-input-group">
+                                    <input type="number" id="recipientsCountInput" min="0" value="90" class="recipients-input">
+                                    <span class="recipients-display">/</span>
+                                    <span class="setting-value" id="previewRecipients">90</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -192,7 +196,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="templateName">Название шаблона *</label>
-                    <input type="text" id="templateName" placeholder="e.g., Мой красивый сертификат">
+                    <input type="text" id="templateName" placeholder="например, Мой красивый сертификат">
                 </div>
 
                 <div class="form-row">
@@ -206,7 +210,7 @@
                     </div>
                 </div>
 
-                <div class="template-input-buttons">
+                <div class="template-input-buttons" id="templateInputButtons">
                     <button class="btn btn-outline" id="chooseFileBtn">Выбрать файл</button>
                     <button class="btn btn-primary" id="insertCodeBtn">Вставить код</button>
                 </div>
@@ -214,8 +218,8 @@
                 <div id="fileUploadArea" class="file-upload-area">
                     <div class="upload-icon">📄</div>
                     <div class="upload-text">Загрузите файл</div>
-                    <div class="upload-subtext">Drag and drop your file here, or browse</div>
-                    <div class="upload-formats">Supported format: HTML, PDF</div>
+                    <div class="upload-subtext">Перетащите сюда файл или нажмите для выбора</div>
+                    <div class="upload-formats">Поддерживаемые форматы: HTML, PDF</div>
                 </div>
 
                 <div id="codeEditorSection" class="code-editor-section hidden">

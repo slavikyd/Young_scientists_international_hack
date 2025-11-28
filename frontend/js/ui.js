@@ -7,12 +7,14 @@ class UIManager {
     init() {
         this.setupPageNavigation();
         this.setupLanguageSelector();
+        this.disableAllNextSteps();
     }
 
     setupPageNavigation() {
         const stepBtns = document.querySelectorAll('.step-btn');
         stepBtns.forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.classList.contains('disabled')) return;
                 const step = btn.getAttribute('data-step');
                 this.goToPage(step);
             });
@@ -25,9 +27,30 @@ class UIManager {
             btn.addEventListener('click', () => {
                 langBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                // TODO: Implement language switching
             });
         });
+    }
+
+    disableAllNextSteps() {
+        document.querySelector('[data-step="templates"]').classList.add('disabled');
+        document.querySelector('[data-step="generate"]').classList.add('disabled');
+    }
+
+    enableNextSteps(stepName) {
+        if (stepName === 'templates') {
+            document.querySelector('[data-step="templates"]').classList.remove('disabled');
+        } else if (stepName === 'generate') {
+            document.querySelector('[data-step="generate"]').classList.remove('disabled');
+        }
+    }
+
+    disableNextSteps(stepName) {
+        if (stepName === 'templates') {
+            document.querySelector('[data-step="templates"]').classList.add('disabled');
+            document.querySelector('[data-step="generate"]').classList.add('disabled');
+        } else if (stepName === 'templates-select') {
+            document.querySelector('[data-step="generate"]').classList.add('disabled');
+        }
     }
 
     goToPage(pageName) {
@@ -41,6 +64,11 @@ class UIManager {
         document.querySelector(`[data-step="${pageName}"]`).classList.add('active');
 
         this.currentPage = pageName;
+
+        // Set max recipients when going to generate page
+        if (pageName === 'generate' && window.generateManager) {
+            window.generateManager.setMaxRecipients(AppState.participants.length);
+        }
     }
 
     showStatus(elementId, message, type = 'info') {
@@ -68,13 +96,11 @@ class UIManager {
     }
 
     updateFilePreview(participants, fileName, roles, places) {
-        // Show file info
         this.showElement('filePreviewSection');
         this.updateTextContent('fileName', `Файл ${fileName} загружен`);
 
-        // Update table
         const tbody = document.querySelector('#participantsPreview tbody');
-        tbody.innerHTML = participants.slice(0, 2).map(p => `
+        tbody.innerHTML = participants.map(p => `
             <tr>
                 <td>${p['фио'] || '-'}</td>
                 <td>${p['почта'] || '-'}</td>
@@ -83,7 +109,6 @@ class UIManager {
             </tr>
         `).join('');
 
-        // Update stats
         const rolesText = roles.length > 0 ? roles.join(', ') : 'недоступно';
         const placesText = places.length > 0 ? places.join(', ') : 'недоступно';
         
@@ -104,7 +129,6 @@ class UIManager {
             this.updateTextContent('previewTemplateName', templateName);
         }
 
-        // Update recipients visibility
         const emailToggle = document.getElementById('sendEmailToggle');
         const recipientsItem = document.getElementById('recipientsCountItem');
         
