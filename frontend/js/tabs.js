@@ -27,5 +27,5 @@ class TabManager {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-    new TabManager();
+    window.tabManager = new TabManager();
 });

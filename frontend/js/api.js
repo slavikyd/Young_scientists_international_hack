@@ -1,126 +1,118 @@
 // API Configuration - FIXED FOR NGINX PROXY
 // Frontend runs on 8001, nginx proxies /api/* to backend on 8000
-const API_BASE_URL = '/api/v1';  // ✅ Relative URL - nginx handles routing
+const API_BASE_URL = '/api/v1';
+const MOCK_MODE = true;
 
 class CertificateAPI {
-    // Participants endpoints
+    constructor() {
+        this.baseURL = API_BASE_URL;
+        this.mockMode = MOCK_MODE;
+    }
+
+    parseCSV(text) {
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const participants = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.some(v => v)) {
+                const participant = {};
+                headers.forEach((header, idx) => {
+                    participant[header] = values[idx] || '';
+                });
+                participants.push(participant);
+            }
+        }
+
+        return participants;
+    }
+
+    analyzeParticipants(participants) {
+        const roles = new Set();
+        const places = new Set();
+
+        participants.forEach(p => {
+            if (p.роль) roles.add(p.роль);
+            if (p.место) places.add(p.место);
+        });
+
+        return {
+            roles: Array.from(roles),
+            places: Array.from(places).sort()
+        };
+    }
+
     async uploadParticipants(file) {
+        if (this.mockMode) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const text = e.target.result;
+                        const participants = this.parseCSV(text);
+
+                        if (participants.length === 0) {
+                            throw new Error('Файл не содержит участников');
+                        }
+
+                        const analysis = this.analyzeParticipants(participants);
+                        AppState.setUploadedFile(file);
+                        AppState.setParticipants(participants);
+                        AppState.setRolesUsed(analysis.roles);
+                        AppState.setPlacesUsed(analysis.places);
+
+                        resolve({
+                            success: true,
+                            participants: participants,
+                            fileName: file.name
+                        });
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = () => reject(new Error('Ошибка при чтении файла'));
+                reader.readAsText(file);
+            });
+        }
+
         const formData = new FormData();
         formData.append('file', file);
         
-        return fetch(`${API_BASE_URL}/participants/upload`, {
+        return fetch(`${this.baseURL}/participants/upload`, {
             method: 'POST',
             body: formData,
         }).then(res => this.handleResponse(res));
     }
 
-    async getParticipants() {
-        return fetch(`${API_BASE_URL}/participants`)
-            .then(res => this.handleResponse(res));
-    }
-
-    async deleteParticipant(id) {
-        return fetch(`${API_BASE_URL}/participants/${id}`, {
-            method: 'DELETE',
-        }).then(res => this.handleResponse(res));
-    }
-
-    // Templates endpoints
-    async createTemplate(templateData) {
-        return fetch(`${API_BASE_URL}/templates`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(templateData),
-        }).then(res => this.handleResponse(res));
-    }
-
-    async getTemplates() {
-        return fetch(`${API_BASE_URL}/templates`)
-            .then(res => this.handleResponse(res));
-    }
-
-    async getTemplate(id) {
-        return fetch(`${API_BASE_URL}/templates/${id}`)
-            .then(res => this.handleResponse(res));
-    }
-
-    async updateTemplate(id, templateData) {
-        return fetch(`${API_BASE_URL}/templates/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(templateData),
-        }).then(res => this.handleResponse(res));
-    }
-
-    async deleteTemplate(id) {
-        return fetch(`${API_BASE_URL}/templates/${id}`, {
-            method: 'DELETE',
-        }).then(res => this.handleResponse(res));
-    }
-
-    // Certificates endpoints
-    async generateCertificates(templateId, sendEmail = false) {
-        return fetch(`${API_BASE_URL}/certificates/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                template_id: templateId,
-                send_email: sendEmail
-            }),
-        }).then(res => this.handleResponse(res));
-    }
-
-    async previewCertificate(participantId) {
-        return fetch(`${API_BASE_URL}/certificates/${participantId}/preview`)
-            .then(res => this.handleResponse(res));
-    }
-
-    async downloadCertificates() {
-        // Download from /downloads/certificates.zip endpoint
-        try {
-            const response = await fetch('/downloads/certificates.zip');
-            if (!response.ok) throw new Error('Download failed');
-            
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'certificates.zip';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Download error:', error);
-            throw error;
+    async generateCertificates(params) {
+        if (this.mockMode) {
+            return Promise.resolve({
+                success: true,
+                certificateCount: AppState.participants.length,
+                batchId: Date.now().toString()
+            });
         }
+
+        return fetch(`${this.baseURL}/certificates/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+        }).then(res => this.handleResponse(res));
     }
 
-    // Helper method for error handling
     async handleResponse(response) {
         if (!response.ok) {
             try {
                 const error = await response.json();
-                throw new Error(error.detail || error.message || `HTTP ${response.status}`);
+                throw new Error(error.message || `HTTP Error: ${response.status}`);
             } catch (e) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(`HTTP Error: ${response.status}`);
             }
         }
-        
-        // Handle empty responses (204 No Content)
-        if (response.status === 204) {
-            return { success: true };
-        }
-        
         return response.json();
     }
 }
 
-// Global API instance
 const api = new CertificateAPI();
+window.api = api;
