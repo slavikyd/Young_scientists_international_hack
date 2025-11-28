@@ -1,0 +1,18 @@
+{
+  "name": "certificate-generator",
+  "version": "1.0.0",
+  "description": "Certificate Generator - Upload participants, manage templates, and generate personalized certificates",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "certificate",
+    "generator",
+    "participants",
+    "templates"
+  ],
+  "author": "",
+  "license": "MIT"
+}
