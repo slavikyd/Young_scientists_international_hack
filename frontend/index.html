@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Generator</title>
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Certificate Generator</h1>
+            <p>Upload participants, manage templates, and generate personalized certificates</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="upload">
+                <span>📤</span>
+                Upload Participants
+            </button>
+            <button class="tab-btn" data-tab="templates">
+                <span>📋</span>
+                Manage Templates
+                <span class="badge" id="templatesBadge">0</span>
+            </button>
+            <button class="tab-btn" data-tab="generate">
+                <span>📄</span>
+                Generate Certificates
+            </button>
+        </div>
+
+        <!-- Upload Participants Tab -->
+        <div id="upload" class="tab-content active">
+            <div class="card">
+                <h2 class="section-title">Upload Participants</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Drag and drop your file here, or <a href="#" id="browseLink">browse</a></div>
+                    <div class="upload-format">Supported format: CSV (for XLSX, please export as CSV first)</div>
+                </div>
+
+                <div id="uploadStatus" class="upload-status hidden"></div>
+
+                <div class="format-table">
+                    <h3>Required CSV/XLSX Format:</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Full name</th>
+                                <th>email</th>
+                                <th>role</th>
+                                <th>place</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>John Doe</td>
+                                <td>john@example.com</td>
+                                <td>winner</td>
+                                <td>1</td>
+                            </tr>
+                            <tr>
+                                <td>Jane Smith</td>
+                                <td>jane@example.com</td>
+                                <td>speaker</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="format-rules">
+                        <p><strong>Valid roles:</strong> participant, speaker, winner, prize-winner</p>
+                        <p><strong>Place field (optional):</strong> 1, 2, or 3</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Templates Tab -->
+        <div id="templates" class="tab-content">
+            <div class="card">
+                <div class="templates-header">
+                    <h2 class="section-title" style="margin-bottom: 0;">Manage Templates</h2>
+                    <button class="btn btn-primary" id="addTemplateBtn">
+                        <span>+</span>
+                        Add Template
+                    </button>
+                </div>
+
+                <div id="templatesContainer" class="no-templates">
+                    <p>No templates yet. Get started with a default template:</p>
+                    <div class="template-buttons">
+                        <button class="template-btn" id="htmlTemplateBtn">
+                            <div class="template-btn-icon">&lt;/&gt;</div>
+                            <div class="template-btn-text">Add Default HTML Template</div>
+                        </button>
+                        <button class="template-btn" id="svgTemplateBtn">
+                            <div class="template-btn-icon">📋</div>
+                            <div class="template-btn-text">Add Default SVG Template</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="templatesList" class="templates-list"></div>
+            </div>
+        </div>
+
+        <!-- Generate Certificates Tab -->
+        <div id="generate" class="tab-content">
+            <div class="card">
+                <h2 class="section-title">Generate Certificates</h2>
+                <div id="generateContent" class="generate-disabled">
+                    <div class="generate-content">
+                        <p>Upload participants and create templates to generate certificates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for template editor -->
+    <div id="templateModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Template Editor</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label>Template Name:</label>
+                <input type="text" id="templateName" placeholder="e.g., HTML Certificate">
+                
+                <label>Template Type:</label>
+                <select id="templateType">
+                    <option value="html">HTML</option>
+                    <option value="svg">SVG</option>
+                </select>
+                
+                <label>Template Content:</label>
+                <textarea id="templateContent" placeholder="{{participant_name}}, {{role}}, {{place}}"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelTemplateBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveTemplateBtn">Save Template</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".csv,.xlsx">
+
+    <script src="js/api.js"></script>
+    <script src="js/tabs.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/templates.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
