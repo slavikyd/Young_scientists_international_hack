@@ -9,8 +9,11 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       DEBUG: "false"
+      # ADD: Frontend API base URL
+      FRONTEND_URL: "http://localhost:8001"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
       - ./app:/app/app
       - ./temp:/app/temp
@@ -18,9 +21,14 @@ services:
     networks:
       - cert-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
-    image: redis
+    image: redis:alpine
     container_name: cert-service-redis
     ports:
       - "6379:6379"
@@ -42,7 +50,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
       - ./app:/app/app
       - ./temp:/app/temp
@@ -58,25 +67,14 @@ services:
     ports:
       - "8001:80"
     volumes:
-      # Serve repository root (contains index.html) as nginx web root
-      - ./:/usr/share/nginx/html:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      # Nginx proxy config
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
     networks:
       - cert-network
 
-  # celery-beat:
-  #   build: .
-  #   container_name: cert-service-beat
-  #   environment:
-  #     REDIS_URL: redis://redis:6379/0
-  #     CELERY_BROKER_URL: redis://redis:6379/1
-  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
-  #   depends_on:
-  #     - redis
-  #   volumes:
-  #     - ./app:/app/app
-  #   networks:
-  #     - cert-network
-  #   command: celery -A app.tasks.celery_app beat --loglevel=info
 
 volumes:
   redis-data:

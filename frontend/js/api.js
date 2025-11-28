@@ -1,5 +1,6 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:3000/api';
+// API Configuration - FIXED FOR NGINX PROXY
+// Frontend runs on 8001, nginx proxies /api/* to backend on 8000
+const API_BASE_URL = '/api/v1';  // ✅ Relative URL - nginx handles routing
 
 class CertificateAPI {
     // Participants endpoints
@@ -18,8 +19,8 @@ class CertificateAPI {
             .then(res => this.handleResponse(res));
     }
 
-    async deleteParticipants() {
-        return fetch(`${API_BASE_URL}/participants`, {
+    async deleteParticipant(id) {
+        return fetch(`${API_BASE_URL}/participants/${id}`, {
             method: 'DELETE',
         }).then(res => this.handleResponse(res));
     }
@@ -40,6 +41,11 @@ class CertificateAPI {
             .then(res => this.handleResponse(res));
     }
 
+    async getTemplate(id) {
+        return fetch(`${API_BASE_URL}/templates/${id}`)
+            .then(res => this.handleResponse(res));
+    }
+
     async updateTemplate(id, templateData) {
         return fetch(`${API_BASE_URL}/templates/${id}`, {
             method: 'PUT',
@@ -57,36 +63,61 @@ class CertificateAPI {
     }
 
     // Certificates endpoints
-    async generateCertificates(params) {
+    async generateCertificates(templateId, sendEmail = false) {
         return fetch(`${API_BASE_URL}/certificates/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(params),
+            body: JSON.stringify({ 
+                template_id: templateId,
+                send_email: sendEmail
+            }),
         }).then(res => this.handleResponse(res));
     }
 
-    async downloadCertificates(batchId) {
-        return fetch(`${API_BASE_URL}/certificates/download/${batchId}`)
-            .then(res => res.blob())
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `certificates_${batchId}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            });
+    async previewCertificate(participantId) {
+        return fetch(`${API_BASE_URL}/certificates/${participantId}/preview`)
+            .then(res => this.handleResponse(res));
+    }
+
+    async downloadCertificates() {
+        // Download from /downloads/certificates.zip endpoint
+        try {
+            const response = await fetch('/downloads/certificates.zip');
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'certificates.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download error:', error);
+            throw error;
+        }
     }
 
     // Helper method for error handling
     async handleResponse(response) {
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'An error occurred');
+            try {
+                const error = await response.json();
+                throw new Error(error.detail || error.message || `HTTP ${response.status}`);
+            } catch (e) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
         }
+        
+        // Handle empty responses (204 No Content)
+        if (response.status === 204) {
+            return { success: true };
+        }
+        
         return response.json();
     }
 }
