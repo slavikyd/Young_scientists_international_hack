@@ -51,6 +51,18 @@ services:
       - cert-network
     command: celery -A app.tasks.celery_app worker --loglevel=info
 
+  frontend:
+    image: nginx:stable-alpine
+    container_name: cert-frontend
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    volumes:
+      # Serve repository root (contains index.html) as nginx web root
+      - ./:/usr/share/nginx/html:ro
+    networks:
+      - cert-network
+
   # celery-beat:
   #   build: .
   #   container_name: cert-service-beat
