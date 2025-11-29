@@ -37,10 +37,18 @@ function initializeApp() {
         }
 
         // Initialize PDF viewer if available
-        if (!window.pdfViewer && typeof PDFViewer !== 'undefined') {
-            console.log('📍 Initializing PDFViewer...');
-            window.pdfViewer = new PDFViewer();
-            console.log('✓ PDFViewer initialized');
+        if (!window.pdfViewer) {
+            if (typeof PDFViewer !== 'undefined') {
+                console.log('📍 Initializing PDFViewer...');
+                try {
+                    window.pdfViewer = new PDFViewer();
+                    console.log('✓ PDFViewer initialized');
+                } catch (error) {
+                    console.error('❌ Error initializing PDFViewer:', error);
+                }
+            } else {
+                console.warn('⚠️  PDFViewer class not found');
+            }
         }
 
         console.log('✅ All managers initialized successfully');

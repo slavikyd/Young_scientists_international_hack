@@ -90,7 +90,8 @@ class TemplatesManager {
     renderTemplates() {
         const grid = document.getElementById('templatesGrid');
         grid.innerHTML = AppState.templates.map((template, idx) => {
-            const typeIcon = template.type === 'html' ? '<>' : '📄';
+            const iconPath = `assets/icons/${template.type}-icon.svg`;
+            const typeIcon = `<img src="${iconPath}" alt="${template.type}" style="width: 24px; height: 24px;">`;
             return `
             <div class="template-card" data-template-id="${template.id}">
                 <div class="template-card-header">
@@ -126,20 +127,6 @@ class TemplatesManager {
                 ui.updateGeneratePreview();
                 ui.enableNextSteps('generate');
             });
-
-            // add a small preview button inside card for direct preview
-            const previewBtn = document.createElement('button');
-            previewBtn.className = 'template-preview-btn';
-            previewBtn.title = 'Предпросмотр';
-            previewBtn.innerHTML = '👁️';
-            previewBtn.style.position = 'absolute';
-            previewBtn.style.left = '10px';
-            previewBtn.style.top = '10px';
-            previewBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.openViewModal(templateId);
-            });
-            card.appendChild(previewBtn);
         });
     }
 
@@ -242,36 +229,104 @@ class TemplatesManager {
         this.openModal();
     }
 
-    openViewModal(templateId) {
+    async openViewModal(templateId) {
         const template = AppState.templates.find(t => t.id === templateId);
         if (!template) return;
         const container = document.getElementById('fullPreviewContainer');
 
         if (template.type === 'pdf') {
-            // If we have a blob URL or http url, open in pdfViewer
-            if (window.pdfViewer && template.content) {
-                window.pdfViewer.showPDF(template.content);
-                // ensure pdf viewer container is visible
-                const pv = document.getElementById('pdfViewerContainer');
-                if (pv) pv.classList.remove('hidden');
+            // For PDF templates, use PDF.js viewer for blob URLs
+            try {
+                console.log('📄 Opening PDF template for preview:', templateId);
+                
+                // Ensure PDF.js worker is configured
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+                    console.log('✓ PDF.js worker configured');
+                } else {
+                    throw new Error('PDF.js не загружен');
+                }
+                
+                container.innerHTML = '<div class="pdf-modal-viewer"><div style="text-align: center; padding: 20px;">Загрузка PDF...</div><canvas id="pdfModalCanvas" style="display: block; margin: 0 auto; max-width: 100%; max-height: 500px;"></canvas><div id="pdfModalControls" style="padding: 10px; text-align: center; background-color: var(--color-border); display: flex; justify-content: space-between; align-items: center;"><button class="btn btn-outline" id="pdfModalPrevBtn" style="padding: 6px 12px; font-size: 12px;">← Предыдущая</button><span id="pdfModalPageInfo">1 / 1</span><button class="btn btn-outline" id="pdfModalNextBtn" style="padding: 6px 12px; font-size: 12px;">Следующая →</button></div></div>';
+                
+                document.getElementById('previewModal').classList.remove('hidden');
+                
+                console.log('📄 Template content type:', typeof template.content, 'length:', template.content?.length);
+                
+                // Load PDF with PDF.js
+                const pdf = await pdfjsLib.getDocument(template.content).promise;
+                console.log('✓ PDF loaded, total pages:', pdf.numPages);
+                
+                let currentPage = 1;
+                const totalPages = pdf.numPages;
+                
+                const renderPage = async (pageNum) => {
+                    try {
+                        console.log('Rendering page:', pageNum);
+                        const page = await pdf.getPage(pageNum);
+                        const canvas = document.getElementById('pdfModalCanvas');
+                        if (!canvas) {
+                            console.error('❌ Canvas not found');
+                            return;
+                        }
+                        
+                        const ctx = canvas.getContext('2d');
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        
+                        await page.render({
+                            canvasContext: ctx,
+                            viewport: viewport
+                        }).promise;
+                        
+                        currentPage = pageNum;
+                        const pageInfo = document.getElementById('pdfModalPageInfo');
+                        if (pageInfo) pageInfo.textContent = `${currentPage} / ${totalPages}`;
+                        console.log('✓ Page rendered:', pageNum);
+                    } catch (error) {
+                        console.error('❌ Error rendering page:', error);
+                    }
+                };
+                
+                await renderPage(1);
+                
+                // Setup navigation buttons
+                const prevBtn = document.getElementById('pdfModalPrevBtn');
+                const nextBtn = document.getElementById('pdfModalNextBtn');
+                
+                if (prevBtn) {
+                    prevBtn.onclick = async () => {
+                        if (currentPage > 1) await renderPage(currentPage - 1);
+                    };
+                }
+                if (nextBtn) {
+                    nextBtn.onclick = async () => {
+                        if (currentPage < totalPages) await renderPage(currentPage + 1);
+                    };
+                }
+                
                 return;
+            } catch (error) {
+                console.error('❌ Error displaying PDF:', error);
+                container.innerHTML = '<div class="preview-placeholder">Ошибка при загрузке PDF: ' + error.message + '</div>';
+                document.getElementById('previewModal').classList.remove('hidden');
             }
-
-            // fallback: show message in preview modal
-            container.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен.</div>';
+        } else if (template.type === 'html') {
+            // HTML template: render in iframe in modal
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.srcdoc = template.content || '';
+            container.innerHTML = '';
+            container.appendChild(iframe);
             document.getElementById('previewModal').classList.remove('hidden');
-            return;
+        } else {
+            // Unknown type
+            container.innerHTML = '<div class="preview-placeholder">Неизвестный тип шаблона</div>';
+            document.getElementById('previewModal').classList.remove('hidden');
         }
-
-        // HTML template: render in iframe in modal
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.srcdoc = template.content || '';
-        container.innerHTML = '';
-        container.appendChild(iframe);
-        document.getElementById('previewModal').classList.remove('hidden');
     }
 
     updateCodePreview() {

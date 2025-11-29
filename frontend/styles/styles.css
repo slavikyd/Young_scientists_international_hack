@@ -1025,3 +1025,54 @@ html, body {
     max-height: 70vh;
   }
 }
+
+/* Context Menu Styles */
+.template-menu {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 180px;
+  animation: slideIn 0.15s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.template-menu-item {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-menu-item:hover {
+  background-color: var(--color-bg-light);
+  color: var(--color-primary);
+}
+
+.template-menu-item.delete {
+  border-top: 1px solid var(--color-border);
+  color: #d32f2f;
+}
+
+.template-menu-item.delete:hover {
+  background-color: #ffebee;
+  color: #c62828;
+}
