@@ -1,9 +1,6 @@
-// API Configuration - FIXED FOR NGINX PROXY
-// Frontend runs on 8001, nginx proxies /api/* to backend on 8000
-const API_BASE_URL = '/api/v1';  // ✅ Relative URL - nginx handles routing
+const API_BASE_URL = '/api/v1';
 
 class CertificateAPI {
-    // Participants endpoints
     async uploadParticipants(file) {
         const formData = new FormData();
         formData.append('file', file);
@@ -25,7 +22,7 @@ class CertificateAPI {
         }).then(res => this.handleResponse(res));
     }
 
-    // Templates endpoints
+    // Templates endpoints - FIXED
     async createTemplate(templateData) {
         return fetch(`${API_BASE_URL}/templates`, {
             method: 'POST',
@@ -37,8 +34,10 @@ class CertificateAPI {
     }
 
     async getTemplates() {
+        // Backend returns array directly
         return fetch(`${API_BASE_URL}/templates`)
-            .then(res => this.handleResponse(res));
+            .then(res => this.handleResponse(res))
+            .then(data => Array.isArray(data) ? data : []);
     }
 
     async getTemplate(id) {
@@ -63,7 +62,7 @@ class CertificateAPI {
     }
 
     // Certificates endpoints
-    async generateCertificates(templateId, sendEmail = false) {
+    async generateCertificates(templateId, eventName, eventLocation, issueDate, sendEmail = false) {
         return fetch(`${API_BASE_URL}/certificates/generate`, {
             method: 'POST',
             headers: {
@@ -71,6 +70,9 @@ class CertificateAPI {
             },
             body: JSON.stringify({ 
                 template_id: templateId,
+                event_name: eventName,
+                event_location: eventLocation,
+                issue_date: issueDate,
                 send_email: sendEmail
             }),
         }).then(res => this.handleResponse(res));
@@ -82,27 +84,30 @@ class CertificateAPI {
     }
 
     async downloadCertificates() {
-        // Download from /downloads/certificates.zip endpoint
         try {
-            const response = await fetch('/downloads/certificates.zip');
-            if (!response.ok) throw new Error('Download failed');
+            const response = await fetch(`${API_BASE_URL}/certificates/download`);
+            
+            if (!response.ok) {
+                throw new Error(`Download failed: ${response.statusText}`);
+            }
             
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'certificates.zip';
+            a.download = `certificates_${new Date().toISOString().split('T')[0]}.zip`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
+            
+            console.log('Certificates downloaded successfully');
         } catch (error) {
             console.error('Download error:', error);
             throw error;
         }
     }
 
-    // Helper method for error handling
     async handleResponse(response) {
         if (!response.ok) {
             try {
@@ -113,7 +118,6 @@ class CertificateAPI {
             }
         }
         
-        // Handle empty responses (204 No Content)
         if (response.status === 204) {
             return { success: true };
         }
@@ -122,5 +126,4 @@ class CertificateAPI {
     }
 }
 
-// Global API instance
 const api = new CertificateAPI();

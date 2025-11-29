@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сертификат</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @page { size: A4 landscape; margin: 0; }
+        
+        body {
+            font-family: 'Times New Roman', Georgia, serif;
+            margin: 0;
+            padding: 0;
+            background: #fafaf8;
+        }
+        
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            background: linear-gradient(135deg, #f5deb3 0%, #ffe4b5 100%);
+            padding: 30mm;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            text-align: center;
+        }
+        
+        /* Decorative border */
+        .certificate::before {
+            content: '';
+            position: absolute;
+            top: 15mm;
+            left: 15mm;
+            right: 15mm;
+            bottom: 15mm;
+            border: 3px solid #8b7355;
+            border-radius: 5px;
+        }
+        
+        .certificate::after {
+            content: '';
+            position: absolute;
+            top: 20mm;
+            left: 20mm;
+            right: 20mm;
+            bottom: 20mm;
+            border: 1px solid #d4a574;
+            border-radius: 3px;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            margin-bottom: 20mm;
+        }
+        
+        .seal {
+            font-size: 80px;
+            line-height: 1;
+            margin-bottom: 10mm;
+        }
+        
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #3d3d3d;
+            margin-bottom: 5mm;
+            letter-spacing: 2px;
+            font-variant: small-caps;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            color: #555;
+            font-style: italic;
+            margin-bottom: 15mm;
+        }
+        
+        .recipient-section {
+            margin: 15mm 0;
+        }
+        
+        .recipient-intro {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 8mm;
+        }
+        
+        .recipient-name {
+            font-size: 44px;
+            font-weight: bold;
+            color: #2c2c2c;
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 8px;
+            margin: 8mm 0;
+            word-wrap: break-word;
+        }
+        
+        .achievement-text {
+            font-size: 14px;
+            color: #666;
+            margin: 10mm 0;
+            line-height: 1.6;
+        }
+        
+        .event-info {
+            font-size: 16px;
+            font-weight: bold;
+            color: #3d3d3d;
+            margin: 8mm 0 5mm 0;
+        }
+        
+        .event-details {
+            display: flex;
+            justify-content: space-around;
+            margin: 15mm 50mm;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .detail {
+            flex: 1;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            font-size: 11px;
+            color: #3d3d3d;
+            margin-bottom: 3mm;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .detail-value {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .signatures {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15mm;
+            padding-top: 10mm;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        .signature-block {
+            text-align: center;
+            width: 30%;
+        }
+        
+        .signature-line {
+            border-top: 2px solid #3d3d3d;
+            margin-bottom: 5mm;
+            height: 35mm;
+        }
+        
+        .signature-title {
+            font-weight: bold;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate">
+        <div class="content">
+            <div class="header">
+                <div class="seal">🏆</div>
+                <div class="title">Сертификат</div>
+                <div class="subtitle">о прохождении обучения</div>
+            </div>
+            
+            <div class="recipient-section">
+                <div class="recipient-intro">Выдан настоящий сертификат:</div>
+                <div class="recipient-name">{{ name }}</div>
+                <div class="achievement-text">
+                    за успешное участие и достижения в
+                </div>
+                <div class="event-info">{{ event_name }}</div>
+            </div>
+            
+            <div class="event-details">
+                <div class="detail">
+                    <div class="detail-label">Место</div>
+                    <div class="detail-value">{{ event_location }}</div>
+                </div>
+                <div class="detail">
+                    <div class="detail-label">Роль</div>
+                    <div class="detail-value">{{ role }}</div>
+                </div>
+                <div class="detail">
+                    <div class="detail-label">Дата</div>
+                    <div class="detail-value">{{ issue_date }}</div>
+                </div>
+            </div>
+            
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">Координатор</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">Руководитель</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List
 import logging
 
+
 from app.services.participant_service import ParticipantService
 from app.schemas.participant import (
     ParticipantResponse,
@@ -11,13 +12,16 @@ from app.schemas.participant import (
 from app.utils.exceptions import ValidationError
 
 
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/participants")
+
 
 
 def get_participant_service() -> ParticipantService:
     """Dependency for participant service."""
     return ParticipantService()
+
 
 
 @router.post(
@@ -52,23 +56,20 @@ async def upload_participants(
                 detail="File is empty"
             )
         
-        # Parse and save
-        participants, errors = await service.parse_and_save_file(
+        # Upload participants using the correct method
+        result = await service.upload_participants(
             content,
             file.filename
         )
         
-        if not participants:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No valid participants found. Errors: {errors}"
-            )
+        # Get uploaded participants using correct method name
+        participants = await service.get_participants()
         
         return UploadResponse(
             success=True,
-            count=len(participants),
+            count=result.get('count', 0),
             participants=participants,
-            errors=errors
+            errors=result.get('errors')
         )
     
     except HTTPException:
@@ -81,6 +82,7 @@ async def upload_participants(
         )
 
 
+
 @router.get(
     "",
     response_model=ParticipantListResponse,
@@ -91,7 +93,7 @@ async def list_participants(
 ):
     """Get all uploaded participants."""
     try:
-        participants = await service.get_all_participants()
+        participants = await service.get_participants()
         return ParticipantListResponse(
             participants=participants,
             total=len(participants)
@@ -102,6 +104,7 @@ async def list_participants(
             status_code=500,
             detail="Failed to retrieve participants"
         )
+
 
 
 @router.delete(

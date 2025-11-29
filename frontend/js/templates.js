@@ -23,7 +23,7 @@ class TemplateManager {
     async loadTemplates() {
         try {
             const response = await api.getTemplates();
-            this.templates = response.templates || [];
+            this.templates = response || [];  // ← CHANGE FROM: response.templates || []
             this.render();
         } catch (error) {
             console.error('Error loading templates:', error);

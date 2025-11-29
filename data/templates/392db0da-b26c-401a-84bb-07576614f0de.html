@@ -1,0 +1,259 @@
+<!-- Simple Certificate Template for Testing -->
+<!-- Usage: Create template in app with type="html" and paste this content -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate of Achievement</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .certificate {
+            width: 800px;
+            height: 600px;
+            background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+            border: 3px solid #2c3e50;
+            border-radius: 10px;
+            padding: 60px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative corners */
+        .certificate::before,
+        .certificate::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #3498db;
+        }
+
+        .certificate::before {
+            top: 15px;
+            left: 15px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .certificate::after {
+            top: 15px;
+            right: 15px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .cert-bottom::before,
+        .cert-bottom::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #3498db;
+        }
+
+        .cert-bottom::before {
+            bottom: 15px;
+            left: 15px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .cert-bottom::after {
+            bottom: 15px;
+            right: 15px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .cert-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 20px;
+        }
+
+        .cert-header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .cert-header p {
+            color: #7f8c8d;
+            font-size: 1em;
+            font-style: italic;
+        }
+
+        .cert-body {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .cert-text {
+            color: #34495e;
+            font-size: 1.1em;
+            line-height: 1.8;
+            margin: 20px 0;
+        }
+
+        .participant-name {
+            color: #2c3e50;
+            font-size: 2em;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 20px 0;
+            text-transform: capitalize;
+        }
+
+        .participant-role {
+            color: #3498db;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 15px 0;
+            text-transform: capitalize;
+        }
+
+        .participant-place {
+            color: #e74c3c;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .cert-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px dashed #bdc3c7;
+        }
+
+        .signature-line {
+            flex: 1;
+            text-align: center;
+        }
+
+        .signature-line div {
+            height: 50px;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .signature-line p {
+            color: #34495e;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .event-info {
+            text-align: center;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 15px;
+        }
+
+        .event-info p {
+            margin: 5px 0;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+
+            .certificate {
+                box-shadow: none;
+                width: 100%;
+                height: auto;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate">
+        <div class="cert-header">
+            <h1>🏆 CERTIFICATE</h1>
+            <p>of Achievement and Recognition</p>
+        </div>
+
+        <div class="cert-body">
+            <p class="cert-text">
+                This is to certify that
+            </p>
+
+            <div class="participant-name">{{name}}</div>
+
+            <p class="cert-text">
+                has successfully completed and participated as
+            </p>
+
+            <div class="participant-role">{{role}}</div>
+
+            {% if place %}
+            <p class="cert-text">
+                and earned
+            </p>
+
+            <div class="participant-place">
+                {% if place == 1 %}
+                    🥇 1st Place
+                {% elif place == 2 %}
+                    🥈 2nd Place
+                {% elif place == 3 %}
+                    🥉 3rd Place
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <p class="cert-text">
+                in the event
+            </p>
+        </div>
+
+        <div class="event-info">
+            <p><strong>{{event_name}}</strong></p>
+            <p>📍 {{event_location}}</p>
+            <p>📅 {{issue_date}}</p>
+        </div>
+
+        <div class="cert-footer">
+            <div class="signature-line">
+                <div>_____________________</div>
+                <p>Organizer Signature</p>
+            </div>
+            <div class="signature-line">
+                <div>_____________________</div>
+                <p>Director</p>
+            </div>
+            <div class="signature-line">
+                <div>_____________________</div>
+                <p>Date</p>
+            </div>
+        </div>
+
+        <div class="cert-bottom"></div>
+    </div>
+</body>
+</html>
