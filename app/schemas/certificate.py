@@ -49,6 +49,7 @@ class CertificateGenerateResponse(BaseModel):
     """Response for certificate generation request."""
     status: str = Field(..., description="Generation status: success, warning, error")
     count: int = Field(..., description="Number of certificates generated")
+    batch_id: Optional[str] = None
     message: Optional[str] = Field(None, description="Status message")
     errors: Optional[List[str]] = Field(default_factory=list, description="List of errors if any")
 

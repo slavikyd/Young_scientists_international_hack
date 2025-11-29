@@ -12,80 +12,111 @@ class TemplatesManager {
     }
 
     init() {
-        console.log('📍 TemplatesManager.init() called');
-        // Attach listeners defensively (elements might be missing or dynamically replaced)
-        const safeOn = (id, evt, cb) => {
-            const el = document.getElementById(id);
-            console.log(`  - ${id}:`, !!el);
-            if (el) el.addEventListener(evt, cb);
-        };
+    console.log('📍 TemplatesManager.init() called');
+    
+    // Attach listeners defensively
+    const safeOn = (id, evt, cb) => {
+        const el = document.getElementById(id);
+        console.log(`  - ${id}:`, !!el);
+        if (el) el.addEventListener(evt, cb);
+    };
 
-        safeOn('addTemplateBtn', 'click', () => {
-            console.log('🖱️ Add Template button clicked');
-            this.openCreateModal();
+    safeOn('addTemplateBtn', 'click', () => {
+        console.log('🖱️ Add Template button clicked');
+        this.openCreateModal();
+    });
+    safeOn('modalClose', 'click', () => this.closeModal());
+    safeOn('modalCancel', 'click', () => this.closeModal());
+    safeOn('modalSave', 'click', () => this.saveTemplate());
+    safeOn('modalBackdrop', 'click', () => this.closeModal());
+
+    safeOn('chooseFileBtn', 'click', () => this.chooseFile());
+    safeOn('insertCodeBtn', 'click', () => this.insertCode());
+    safeOn('deleteFileBtn', 'click', () => this.deleteFile());
+    
+    const fileInput = document.getElementById('templateFileInput');
+    if (fileInput) fileInput.addEventListener('change', (e) => this.handleTemplateFile(e));
+
+    const uploadArea = document.getElementById('fileUploadArea');
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
         });
-        safeOn('modalClose', 'click', () => this.closeModal());
-        safeOn('modalCancel', 'click', () => this.closeModal());
-        safeOn('modalSave', 'click', () => this.saveTemplate());
-        safeOn('modalBackdrop', 'click', () => this.closeModal());
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
+        });
+        uploadArea.addEventListener('click', () => this.chooseFile());
+    }
 
-        safeOn('chooseFileBtn', 'click', () => this.chooseFile());
-        safeOn('insertCodeBtn', 'click', () => this.insertCode());
-        safeOn('deleteFileBtn', 'click', () => this.deleteFile());
-        const fileInput = document.getElementById('templateFileInput');
-        if (fileInput) fileInput.addEventListener('change', (e) => this.handleTemplateFile(e));
+    safeOn('previewBackdrop', 'click', () => this.closePreviewModal());
+    safeOn('previewClose', 'click', () => this.closePreviewModal());
+    
+    const expandBtn = document.getElementById('expandPreviewBtn');
+    if (expandBtn) expandBtn.addEventListener('click', () => this.openFullPreview());
+    
+    const tmplContent = document.getElementById('templateContent');
+    if (tmplContent) tmplContent.addEventListener('input', () => this.updateCodePreview());
 
-        const uploadArea = document.getElementById('fileUploadArea');
-        if (uploadArea) {
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
-            });
-            uploadArea.addEventListener('click', () => this.chooseFile());
+    // ✅ LOAD TEMPLATES FROM BACKEND (replaces loadDefaultTemplates)
+    this.loadTemplatesFromBackend();
+}
+
+// ============================================
+// NEW METHOD - Load templates from backend
+// ============================================
+async loadTemplatesFromBackend() {
+    try {
+        console.log('📡 Loading templates from backend...');
+        const response = await fetch('/api/v1/templates');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-
-        safeOn('previewBackdrop', 'click', () => this.closePreviewModal());
-        safeOn('previewClose', 'click', () => this.closePreviewModal());
-        const expandBtn = document.getElementById('expandPreviewBtn');
-        if (expandBtn) expandBtn.addEventListener('click', () => this.openFullPreview());
-        const tmplContent = document.getElementById('templateContent');
-        if (tmplContent) tmplContent.addEventListener('input', () => this.updateCodePreview());
-
-        this.loadDefaultTemplates();
+        
+        const templates = await response.json();
+        console.log('✅ Loaded templates from backend:', templates.length);
+        
+        if (templates.length > 0) {
+            console.log('   Template IDs:', templates.map(t => t.id).join(', '));
+        }
+        
+        AppState.templates = templates;
+        this.renderTemplates();
+        
+    } catch (error) {
+        console.error('❌ Error loading templates from backend:', error);
+        AppState.templates = [];
         this.renderTemplates();
     }
+}
 
-    loadDefaultTemplates() {
-        const defaults = [
-            {
-                name: 'Стандартный шаблон HTML',
-                type: 'html',
-                description: 'Базовый HTML сертификат',
-                content: '<div style="text-align:center;"><h1>Сертификат</h1><p>{{participant_name}}</p></div>',
-                isDefault: true,
-                isStandard: true
-            },
-            {
-                name: 'Стандартный шаблон PDF',
-                type: 'pdf',
-                description: 'PDF сертификат',
-                content: null,
-                isDefault: true,
-                isStandard: true
-            }
-        ];
+// ============================================
+// IMPORTANT: DELETE loadDefaultTemplates() 
+// method completely - it should NOT exist
+// ============================================
 
-        defaults.forEach(t => {
-            t.id = Date.now().toString() + Math.random();
-            AppState.templates.push(t);
-        });
+
+    async loadTemplatesFromBackend() {
+    try {
+        console.log('📡 Loading templates from backend...');
+        const response = await fetch('/api/v1/templates');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const templates = await response.json();
+        console.log('✅ Loaded templates:', templates.length);
+        
+        AppState.templates = templates;
+        this.renderTemplates();
+    } catch (error) {
+        console.error('❌ Error loading templates:', error);
+        AppState.templates = [];
+        this.renderTemplates();
     }
+}
 
     renderTemplates() {
         const grid = document.getElementById('templatesGrid');
@@ -439,58 +470,58 @@ class TemplatesManager {
     }
 
     saveTemplate() {
-        const name = document.getElementById('templateName').value.trim();
-        const desc = document.getElementById('templateDesc').value.trim();
-        const content = document.getElementById('templateContent').value.trim();
-        const type = document.getElementById('templateTypeDisplay').textContent.toLowerCase();
+    const name = document.getElementById('templateName').value.trim();
+    const desc = document.getElementById('templateDesc').value.trim();
+    const content = document.getElementById('templateContent').value.trim();
+    const type = document.getElementById('templateTypeDisplay').textContent.toLowerCase();
 
-        if (!name) {
-            alert('Пожалуйста, введите название шаблона');
-            return;
-        }
-
-        if (type === 'html' && !content) {
-            alert('HTML шаблон не может быть пустым');
-            return;
-        }
-
-        if (type === 'pdf' && !this.loadedFile) {
-            alert('Пожалуйста, загрузите PDF файл');
-            return;
-        }
-
-        const template = {
-            name,
-            description: desc,
-            content: null,
-            contentName: null,
-            type,
-            isDefault: false,
-            isStandard: false
-        };
-
-        if (type === 'html') {
-            template.content = content;
-        } else if (type === 'pdf' && this.loadedFile) {
-            // store blob URL for preview
-            template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
-            template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
-        }
-
-        if (this.editingId) {
-            // Revoke previous blob URL if exists before replacing
-            const prev = AppState.templates.find(t => t.id === this.editingId);
-            if (prev && prev.content && prev.content.startsWith && prev.content.startsWith('blob:') && prev.content !== template.content) {
-                try { URL.revokeObjectURL(prev.content); } catch (e) {}
-            }
-            AppState.updateTemplate(this.editingId, template);
-        } else {
-            AppState.addTemplate(template);
-        }
-
-        this.closeModal();
-        this.renderTemplates();
+    if (!name) {
+        alert('Пожалуйста, введите название шаблона');
+        return;
     }
+
+    if (type === 'html' && !content) {
+        alert('HTML шаблон не может быть пустым');
+        return;
+    }
+
+    if (type === 'pdf' && !this.loadedFile) {
+        alert('Пожалуйста, загрузите PDF файл');
+        return;
+    }
+
+    const template = {
+        id: this.editingId || Math.random().toString(36).substr(2, 9),
+        name,
+        description: desc,
+        content: null,
+        contentName: null,
+        type,
+        isDefault: false,
+        isStandard: false
+    };
+
+    if (type === 'html') {
+        template.content = content;
+    } else if (type === 'pdf' && this.loadedFile) {
+        template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
+        template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
+    }
+
+    if (this.editingId) {
+        const prev = AppState.templates.find(t => t.id === this.editingId);
+        if (prev && prev.content && prev.content.startsWith && prev.content.startsWith('blob:') && prev.content !== template.content) {
+            try { URL.revokeObjectURL(prev.content); } catch (e) {}
+        }
+        AppState.updateTemplate(this.editingId, template);
+    } else {
+        AppState.addTemplate(template);
+    }
+
+    this.closeModal();
+    this.renderTemplates();
+}
+
 
     deleteTemplate(templateId) {
         if (!confirm('Вы уверены? Это удалит шаблон.')) return;

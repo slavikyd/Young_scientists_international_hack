@@ -13,10 +13,50 @@ from app.schemas.certificate import (
     CertificateMetadata
 )
 
-
-
+import zipfile
+import io
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/certificates")
+# Then add this NEW route:
+@router.get("/download/{batch_id}")
+async def download_certificates(batch_id: str):
+    """Download certificates as ZIP file."""
+    try:
+        logger.info(f"📦 Download requested for batch: {batch_id}")
+        
+        from app.storage.minio_storage import MinIOStorage
+        minio = MinIOStorage()
+        
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            objects = minio.client.list_objects(
+                'certificates',
+                prefix=f'{batch_id}/',
+                recursive=True
+            )
+            
+            for obj in objects:
+                response = minio.client.get_object('certificates', obj.object_name)
+                file_data = response.read()
+                filename = obj.object_name.split('/')[-1]
+                zf.writestr(filename, file_data)
+        
+        zip_buffer.seek(0)
+        logger.info(f"✅ ZIP ready: {zip_buffer.getbuffer().nbytes} bytes")
+        
+        return StreamingResponse(
+    iter([zip_buffer.getvalue()]),
+    media_type="application/zip",
+    headers={"Content-Disposition": f"attachment; filename=certificates_{batch_id}.zip"}
+)
+
+        
+    except Exception as e:
+        logger.error(f"❌ Download error: {e}", exc_info=True)
+        raise
+
+
 
 
 
@@ -62,12 +102,13 @@ async def generate_certificates(
             logger.info("Email sending queued for certificates")
         
         return GenerateResponse(
-            status="success",
-            count=result.get('count', 0),
-            message=result.get('message'),
-            errors=result.get('errors')
-        )
-    
+    status="success",
+    count=result.get('count', 0),
+    batch_id=result.get('batch_id'),  # ✅ ADD THIS LINE
+    message=result.get('message'),
+    errors=result.get('errors')
+)
+
     except ValueError as e:
         logger.warning(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))

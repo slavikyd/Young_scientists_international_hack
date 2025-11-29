@@ -34,11 +34,36 @@ const AppState = {
         this.placesUsed = places;
     },
     
-    addTemplate(template) {
-        template.id = Date.now().toString();
-        this.templates.push(template);
-        return template;
-    },
+    async addTemplate(template) {
+    try {
+        console.log('📡 Saving template to backend...', template);
+        
+        // POST to backend
+        const response = await fetch('/api/v1/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: template.name,
+                content: template.content,
+                template_type: template.type
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const savedTemplate = await response.json();
+        console.log('✅ Template saved to backend:', savedTemplate);
+        
+        // Add to frontend too
+        this.templates.push(savedTemplate);
+        
+    } catch (error) {
+        console.error('❌ Error saving template:', error);
+        throw error;
+    }
+},
     
     updateTemplate(id, template) {
         const index = this.templates.findIndex(t => t.id === id);
