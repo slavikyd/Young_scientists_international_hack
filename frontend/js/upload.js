@@ -1,90 +1,181 @@
-// Upload functionality
 class UploadManager {
     constructor() {
-        this.uploadArea = document.getElementById('uploadArea');
-        this.fileInput = document.getElementById('fileInput');
-        this.browseLink = document.getElementById('browseLink');
-        this.uploadStatus = document.getElementById('uploadStatus');
-        this.participants = [];
-        this.init();
+        this.uploadedFile = null;
+        try {
+            this.init();
+        } catch (error) {
+            console.error('❌ Error in UploadManager.init():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     init() {
-        this.browseLink.addEventListener('click', (e) => {
+        console.log('📍 UploadManager.init() called');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const clearBtn = document.getElementById('clearUploadBtn');
+
+        console.log('  - uploadArea:', !!uploadArea);
+        console.log('  - fileInput:', !!fileInput);
+        console.log('  - clearBtn:', !!clearBtn);
+
+        uploadArea.addEventListener('dragover', (e) => {
+            if (this.uploadedFile) return;
             e.preventDefault();
-            this.fileInput.click();
+            uploadArea.classList.add('dragover');
         });
 
-        this.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            this.uploadArea.classList.add('dragover');
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
         });
 
-        this.uploadArea.addEventListener('dragleave', () => {
-            this.uploadArea.classList.remove('dragover');
-        });
-
-        this.uploadArea.addEventListener('drop', (e) => {
+        uploadArea.addEventListener('drop', (e) => {
+            if (this.uploadedFile) return;
             e.preventDefault();
-            this.uploadArea.classList.remove('dragover');
+            uploadArea.classList.remove('dragover');
             this.handleFileUpload(e.dataTransfer.files);
         });
 
-        this.uploadArea.addEventListener('click', () => {
-            this.fileInput.click();
+        uploadArea.addEventListener('click', () => {
+            if (!this.uploadedFile) fileInput.click();
         });
 
-        this.fileInput.addEventListener('change', (e) => {
-            this.handleFileUpload(e.target.files);
-        });
+        fileInput.addEventListener('change', (e) => this.handleFileUpload(e.target.files));
+        clearBtn.addEventListener('click', () => this.clearUpload());
+
+        // Download example files
+        const downloadXlsxBtn = document.getElementById('downloadXlsx');
+        const downloadCsvBtn = document.getElementById('downloadCsv');
+        console.log('  - downloadXlsxBtn:', !!downloadXlsxBtn);
+        console.log('  - downloadCsvBtn:', !!downloadCsvBtn);
+        
+        if (downloadXlsxBtn) {
+            downloadXlsxBtn.addEventListener('click', () => {
+                console.log('🖱️ Download XLSX clicked');
+                this.downloadExample('xlsx');
+            });
+        }
+        if (downloadCsvBtn) {
+            downloadCsvBtn.addEventListener('click', () => {
+                console.log('🖱️ Download CSV clicked');
+                this.downloadExample('csv');
+            });
+        }
+
+        this.updateUploadAreaState();
+    }
+
+    downloadExample(format) {
+        const csvData = `ФИО,Почта,Роль,Место
+Пупкин Василий Жёнович,vasiliy@pupka.net,Победитель,1
+Любопыткина Варвара Безносая,varvara@nosa.net,Участник,
+Иванов Петр Сергеевич,peter@ivan.ru,Победитель,2
+Сидорова Мария Ивановна,maria@sidorova.ru,Участник,
+Смирнов Иван Николаевич,ivan@smirnov.org,Участник,3
+Козлова Елена Петровна,elena@kozlova.net,Участник,`;
+
+        if (format === 'xlsx') {
+            // Create proper Excel file using XLSX library
+            if (typeof XLSX === 'undefined') {
+                alert('XLSX библиотека ещё загружается. Пожалуйста, попробуйте снова через 1-2 секунды.');
+                return;
+            }
+            try {
+                const lines = csvData.split('\n');
+                const data = lines.map(line => 
+                    line.split(',').map(cell => cell.trim())
+                );
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Participants");
+                XLSX.writeFile(wb, `example_participants.${format}`);
+            } catch (error) {
+                alert(`Ошибка при создании Excel файла: ${error.message}`);
+                console.error('XLSX error:', error);
+            }
+        } else {
+            // CSV download
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `example_participants.${format}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    }
+
+    updateUploadAreaState() {
+        const uploadArea = document.getElementById('uploadArea');
+        if (this.uploadedFile) {
+            uploadArea.style.opacity = '0.5';
+            uploadArea.style.cursor = 'not-allowed';
+            uploadArea.style.pointerEvents = 'none';
+        } else {
+            uploadArea.style.opacity = '1';
+            uploadArea.style.cursor = 'pointer';
+            uploadArea.style.pointerEvents = 'auto';
+        }
     }
 
     async handleFileUpload(files) {
-        if (files.length === 0) return;
+        if (files.length === 0 || this.uploadedFile) return;
 
         const file = files[0];
-        const validFormats = ['.csv', '.xlsx'];
-        const isValidFormat = validFormats.some(format => file.name.endsWith(format));
+        const isValid = file.name.endsWith('.csv') || file.name.endsWith('.xlsx');
 
-        if (!isValidFormat) {
-            this.showStatus('Please upload a CSV or XLSX file', 'error');
+        if (!isValid) {
+            ui.showStatus('uploadStatus', 'Пожалуйста, загрузите CSV или XLSX файл', 'error');
             return;
         }
 
         try {
-            this.showStatus('Uploading...', 'info');
             const response = await api.uploadParticipants(file);
             
-            this.participants = response.participants || [];
-            this.showStatus(
-                `✓ Successfully uploaded ${this.participants.length} participants!`,
-                'success'
+            this.uploadedFile = file;
+            ui.showStatus('uploadStatus', `✓ Успешно загружено ${response.participants.length} участников!`, 'success');
+            
+            ui.hideElement('fileFormatInfo');
+            
+            ui.updateFilePreview(
+                response.participants,
+                file.name,
+                AppState.rolesUsed,
+                AppState.placesUsed
             );
-
-            // Update state for other components
-            window.appState = window.appState || {};
-            window.appState.participantsUploaded = true;
-            window.appState.participantsCount = this.participants.length;
-
-            // Trigger event for other components
-            document.dispatchEvent(new CustomEvent('participantsUploaded', {
-                detail: { count: this.participants.length }
-            }));
-
+            // Reset preview index to first participant so UI shows 1 / total
+            if (typeof AppState.setPreviewIndex === 'function') {
+                AppState.setPreviewIndex(1);
+            } else {
+                AppState.previewIndex = 1;
+            }
+            
+            document.getElementById('clearUploadBtn').classList.remove('hidden');
+            this.updateUploadAreaState();
+            
+            ui.enableNextSteps('templates');
+            
         } catch (error) {
-            this.showStatus(`Error: ${error.message}`, 'error');
-            console.error('Upload error:', error);
+            ui.showStatus('uploadStatus', `Ошибка: ${error.message}`, 'error');
         }
     }
 
-    showStatus(message, type) {
-        this.uploadStatus.textContent = message;
-        this.uploadStatus.classList.remove('hidden', 'success', 'error', 'info');
-        this.uploadStatus.classList.add(type);
+    clearUpload() {
+        if (!confirm('Вы уверены? Это удалит все загруженные данные.')) return;
+
+        this.uploadedFile = null;
+        AppState.setUploadedFile(null);
+        AppState.setParticipants([]);
+        AppState.setRolesUsed([]);
+        AppState.setPlacesUsed([]);
+
+        ui.hideElement('filePreviewSection');
+        ui.hideElement('uploadStatus');
+        ui.showElement('fileFormatInfo');
+        document.getElementById('clearUploadBtn').classList.add('hidden');
+        document.getElementById('fileInput').value = '';
+        
+        this.updateUploadAreaState();
+        ui.disableNextSteps('templates');
     }
 }
-
-// Initialize on DOM load
-document.addEventListener('DOMContentLoaded', () => {
-    new UploadManager();
-});
