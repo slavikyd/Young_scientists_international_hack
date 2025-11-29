@@ -11,6 +11,7 @@ COPY . .
 RUN poetry config virtualenvs.create false \
  && poetry install --no-root
 
+
 RUN mkdir -p /app/temp/uploads /app/temp/certificates /app/data/templates
 
 EXPOSE 8000

@@ -141,7 +141,7 @@ class CertificateService:
                 try:
                     # Prepare variables for template rendering
                     variables = {
-                        'name': participant.get('full_name', 'Unknown'),
+                        'participant_name': participant.get('full_name', 'Unknown'),
                         'email': participant.get('email', ''),
                         'role': participant.get('role', 'participant'),
                         'place': participant.get('place'),

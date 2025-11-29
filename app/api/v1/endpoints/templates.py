@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 import logging
+import os
 
 from app.services.template_service import TemplateService
 from app.schemas.template import TemplateCreate, TemplateResponse
@@ -77,6 +78,47 @@ async def get_template(
         return TemplateResponse(**template)
     except Exception as e:
         logger.error(f"Error getting template: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{template_id}", response_model=TemplateResponse)
+async def update_template(
+    template_id: str,
+    request: TemplateCreate,
+    service: TemplateService = Depends(get_template_service)
+):
+    try:
+        logger.info(f"Updating template: {template_id}")
+        
+        # Get existing template
+        template = await service.get_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # Update the file content (keep same ID and path)
+        template_path = template.get('content_path')
+        with open(template_path, 'w', encoding='utf-8') as f:
+            f.write(request.content)
+        
+        logger.info(f"Updated template file: {template_path}")
+        
+        # Update metadata in Redis (keep same template_id!)
+        updated_metadata = {
+            'id': template_id,
+            'name': request.name,
+            'type': request.type,
+            'content_path': template_path,
+            'variables': template.get('variables', []),
+            'created_at': template.get('created_at'),
+            'updated_at': str(os.path.getctime(template_path)),
+        }
+        
+        await service.storage.save_template(template_id, updated_metadata)
+        
+        logger.info(f"✅ Template updated: {template_id}")
+        return TemplateResponse(**updated_metadata)
+    except Exception as e:
+        logger.error(f"Error updating template: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
