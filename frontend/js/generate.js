@@ -78,11 +78,6 @@ class GenerateManager {
             return;
         }
 
-        if (AppState.emailsEnabled && recipientsCount > AppState.participants.length) {
-            alert(`Количество получателей не может быть больше ${AppState.participants.length}`);
-            return;
-        }
-
         this.isGenerating = true;
         document.getElementById('generateBtn').style.display = 'none';
         
