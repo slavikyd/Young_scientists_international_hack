@@ -12,80 +12,111 @@ class TemplatesManager {
     }
 
     init() {
-        console.log('📍 TemplatesManager.init() called');
-        // Attach listeners defensively (elements might be missing or dynamically replaced)
-        const safeOn = (id, evt, cb) => {
-            const el = document.getElementById(id);
-            console.log(`  - ${id}:`, !!el);
-            if (el) el.addEventListener(evt, cb);
-        };
+    console.log('📍 TemplatesManager.init() called');
+    
+    // Attach listeners defensively
+    const safeOn = (id, evt, cb) => {
+        const el = document.getElementById(id);
+        console.log(`  - ${id}:`, !!el);
+        if (el) el.addEventListener(evt, cb);
+    };
 
-        safeOn('addTemplateBtn', 'click', () => {
-            console.log('🖱️ Add Template button clicked');
-            this.openCreateModal();
+    safeOn('addTemplateBtn', 'click', () => {
+        console.log('🖱️ Add Template button clicked');
+        this.openCreateModal();
+    });
+    safeOn('modalClose', 'click', () => this.closeModal());
+    safeOn('modalCancel', 'click', () => this.closeModal());
+    safeOn('modalSave', 'click', () => this.saveTemplate());
+    safeOn('modalBackdrop', 'click', () => this.closeModal());
+
+    safeOn('chooseFileBtn', 'click', () => this.chooseFile());
+    safeOn('insertCodeBtn', 'click', () => this.insertCode());
+    safeOn('deleteFileBtn', 'click', () => this.deleteFile());
+    
+    const fileInput = document.getElementById('templateFileInput');
+    if (fileInput) fileInput.addEventListener('change', (e) => this.handleTemplateFile(e));
+
+    const uploadArea = document.getElementById('fileUploadArea');
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
         });
-        safeOn('modalClose', 'click', () => this.closeModal());
-        safeOn('modalCancel', 'click', () => this.closeModal());
-        safeOn('modalSave', 'click', () => this.saveTemplate());
-        safeOn('modalBackdrop', 'click', () => this.closeModal());
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
+        });
+        uploadArea.addEventListener('click', () => this.chooseFile());
+    }
 
-        safeOn('chooseFileBtn', 'click', () => this.chooseFile());
-        safeOn('insertCodeBtn', 'click', () => this.insertCode());
-        safeOn('deleteFileBtn', 'click', () => this.deleteFile());
-        const fileInput = document.getElementById('templateFileInput');
-        if (fileInput) fileInput.addEventListener('change', (e) => this.handleTemplateFile(e));
+    safeOn('previewBackdrop', 'click', () => this.closePreviewModal());
+    safeOn('previewClose', 'click', () => this.closePreviewModal());
+    
+    const expandBtn = document.getElementById('expandPreviewBtn');
+    if (expandBtn) expandBtn.addEventListener('click', () => this.openFullPreview());
+    
+    const tmplContent = document.getElementById('templateContent');
+    if (tmplContent) tmplContent.addEventListener('input', () => this.updateCodePreview());
 
-        const uploadArea = document.getElementById('fileUploadArea');
-        if (uploadArea) {
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
-            });
-            uploadArea.addEventListener('click', () => this.chooseFile());
+    // ✅ LOAD TEMPLATES FROM BACKEND (replaces loadDefaultTemplates)
+    this.loadTemplatesFromBackend();
+}
+
+// ============================================
+// NEW METHOD - Load templates from backend
+// ============================================
+async loadTemplatesFromBackend() {
+    try {
+        console.log('📡 Loading templates from backend...');
+        const response = await fetch('/api/v1/templates');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-
-        safeOn('previewBackdrop', 'click', () => this.closePreviewModal());
-        safeOn('previewClose', 'click', () => this.closePreviewModal());
-        const expandBtn = document.getElementById('expandPreviewBtn');
-        if (expandBtn) expandBtn.addEventListener('click', () => this.openFullPreview());
-        const tmplContent = document.getElementById('templateContent');
-        if (tmplContent) tmplContent.addEventListener('input', () => this.updateCodePreview());
-
-        this.loadDefaultTemplates();
+        
+        const templates = await response.json();
+        console.log('✅ Loaded templates from backend:', templates.length);
+        
+        if (templates.length > 0) {
+            console.log('   Template IDs:', templates.map(t => t.id).join(', '));
+        }
+        
+        AppState.templates = templates;
+        this.renderTemplates();
+        
+    } catch (error) {
+        console.error('❌ Error loading templates from backend:', error);
+        AppState.templates = [];
         this.renderTemplates();
     }
+}
 
-    loadDefaultTemplates() {
-        const defaults = [
-            {
-                name: 'Стандартный шаблон HTML',
-                type: 'html',
-                description: 'Базовый HTML сертификат',
-                content: '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Сертификат</title><style>*{margin:0;padding:0;font-family:DejaVuSans,Arial,sans-serif}@page{size:A4 portrait;margin:0}html,body{width:210mm;height:297mm;margin:0;padding:0;box-sizing:border-box}body{background:#f7f7f7}.certificate{width:210mm;height:297mm;position:relative;background:#ffffff;border:5mm solid #005F6B;box-sizing:border-box;padding:0;display:flex;flex-direction:column;text-align:center;overflow:hidden;margin:0}.header-band{flex:0 0 100mm;background-color:#005F6B;position:relative;padding:5mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:20px}.ornament-in-band{position:absolute;top:0;left:0;width:100%;height:25px;background:repeating-linear-gradient(45deg,#005F6B,#005F6B 15px,#C58940 15px,#C58940 25px)}.certificate-title{font-size:48px;font-weight:bold;color:#FFFFFF;letter-spacing:3px;text-transform:uppercase;text-shadow:1px 1px 2px rgba(0,0,0,0.2);z-index:20}.certificate-body{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;padding:10px 40px 10px 40px;box-sizing:border-box;position:relative}.subtitle-block{flex:0 0 auto;margin-top:20px;margin-bottom:30px}.certificate-subtitle{font-size:20px;color:#C58940;font-style:italic;margin-bottom:10px}.separator{width:120px;height:2px;background:#C58940;margin:0 auto}.content-wrap{margin:0 auto;max-width:100%}.body-text-main{font-size:16px;color:#34495e;margin:10px 0 20px 0;font-style:italic}.participant-name{font-size:40px;font-weight:bold;color:#C58940;margin:10px 0 30px 0;border-bottom:1px solid #005F6B;padding-bottom:5px;word-wrap:break-word;line-height:1.1}.achievement-text-new{font-size:18px;color:#2c3e50;line-height:1.6;margin-bottom:15px}.achievement-text-new strong{color:#005F6B;font-weight:700;font-style:italic}.location-text{font-size:14px;color:#555;margin-top:10px;font-style:italic}.footer-separator{width:80%;border-top:1px dashed #C58940;margin:40px auto 20px auto}.certificate-footer{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-end;width:100%;padding:10px 40px 10px 40px;box-sizing:border-box;border-top:1px solid #C58940}.date-box{font-size:14px;color:#555;text-align:left;width:30%;line-height:1.4;display:flex;flex-direction:column;align-items:flex-start}.seal-placeholder{width:75px;height:75px;border:2px solid #005F6B;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#005F6B;text-align:center;font-weight:bold;line-height:1.2;flex-shrink:0}.signature-group{display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;width:35%;gap:5px;padding-bottom:10px}.signature-row{display:flex;align-items:center;width:100%;line-height:1.2}.signature-label{white-space:nowrap;font-size:14px;color:#005F6B;font-weight:500;padding-right:5px}.signature-line-fixed{flex-grow:1;border-bottom:1px solid #005F6B;height:1px}</style></head><body><div class="certificate"><div class="header-band"><div class="ornament-in-band"></div><div class="certificate-title">СЕРТИФИКАТ</div></div><div class="certificate-body"><div class="subtitle-block"><div class="certificate-subtitle">О признании заслуг и достижений</div><div class="separator"></div></div><div class="content-wrap"><div class="body-text-main">Настоящим подтверждается, что</div><div class="participant-name">{{ participant_name }}</div><div class="achievement-text-new">Успешно принял(а) участие в мероприятии <br>"<strong>{{ event_name }}</strong>" <br>в качестве роли "<strong>{{ role }}</strong>".</div><div class="location-text">Место проведения: {{ event_location }}</div><div class="footer-separator"></div></div></div><div class="certificate-footer"><div class="date-box">Дата выдачи:<br><strong>{{ issue_date }}</strong></div><div class="seal-placeholder">МЕСТО ДЛЯ ПЕЧАТИ</div><div class="signature-group"><div class="signature-row"><span class="signature-label">Директор</span><span class="signature-line-fixed"></span></div><div class="signature-row"><span class="signature-label">Руководитель программы</span><span class="signature-line-fixed"></span></div></div></div></div></body></html>',
-                isDefault: true,
-                isStandard: true
-            },
-            {
-                name: 'Стандартный шаблон SVG',
-                type: 'svg',
-                description: 'Базовый SVG сертификат',
-                content: '<svg width="210mm" height="297mm" viewBox="0 0 210 297" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><style type="text/css">@font-face{font-family:\'DejaVuSans\';src:local(\'DejaVu Sans\');}.font-main{font-family:\'DejaVuSans\',Arial,sans-serif;}.teal{fill:#005F6B;}.copper{fill:#C58940;}.white{fill:#FFFFFF;}.gray-text{fill:#34495e;}.title-text{font-size:13px;font-weight:bold;letter-spacing:0.8;}.subtitle-text{font-size:5px;font-style:italic;}.body-text{font-size:4.5px;}.name-text{font-size:10px;font-weight:bold;}.small-text{font-size:3.5px;}.signature-label{font-size:4px;font-weight:500;}.date-text{font-size:4px;}</style><pattern id="diagonalStripe" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><rect width="6" height="6" fill="#005F6B"/><rect x="0" y="3" width="6" height="3" fill="#C58940"/></pattern></defs><rect width="210" height="297" fill="white"/><rect x="0" y="0" width="210" height="297" stroke="#005F6B" stroke-width="5" fill="none"/><g transform="translate(5 5)"><rect x="0" y="0" width="200" height="287" stroke="#C58940" stroke-width="0.5" fill="none"/><g transform="translate(0 0)"><rect x="0" y="0" width="200" height="6" fill="url(#diagonalStripe)"/><rect x="0" y="281" width="200" height="6" fill="url(#diagonalStripe)"/><rect x="0" y="6" width="200" height="95" fill="#005F6B"/><text x="100" y="93" class="font-main white title-text" text-anchor="middle">СЕРТИФИКАТ</text><g transform="translate(0 101)"><text x="100" y="5" class="font-main copper subtitle-text" text-anchor="middle">О признании заслуг и достижений</text><line x1="70" y1="8" x2="130" y2="8" stroke="#C58940" stroke-width="0.5"/><text x="100" y="25" class="font-main gray-text body-text" text-anchor="middle">Настоящим подтверждается, что</text><text x="100" y="45" class="font-main copper name-text" text-anchor="middle">{{ participant_name }}</text><line x1="40" y1="47" x2="160" y2="47" stroke="#005F6B" stroke-width="0.3"/><g class="font-main gray-text body-text" text-anchor="middle"><text x="100" y="65">Успешно принял(а) участие в мероприятии</text><text x="100" y="72" class="teal">"{{ event_name }}"</text><text x="100" y="79">в качестве роли "{{ role }}".</text></g><text x="100" y="95" class="font-main gray-text small-text" text-anchor="middle">Место проведения: {{ event_location }}</text><line x1="30" y1="120" x2="170" y2="120" stroke="#C58940" stroke-width="0.3" stroke-dasharray="2 1"/></g><g transform="translate(0 220)"><line x1="0" y1="0" x2="200" y2="0" stroke="#C58940" stroke-width="0.3"/><g transform="translate(40 10)" class="font-main date-text gray-text" text-anchor="start"><text x="-30" y="0">Дата выдачи:</text><text x="-30" y="4" font-weight="bold">{{ issue_date }}</text></g><g transform="translate(100 45)"><circle r="10" stroke="#005F6B" stroke-width="0.5" fill="none"/><text x="0" y="-1" class="font-main teal small-text" text-anchor="middle">МЕСТО ДЛЯ</text><text x="0" y="3" class="font-main teal small-text" text-anchor="middle">ПЕЧАТИ</text></g><g transform="translate(140 10)"><text x="0" y="0" class="font-main teal signature-label" text-anchor="start">Директор</text><line x1="25" y1="0" x2="90" y2="0" stroke="#005F6B" stroke-width="0.3"/><text x="0" y="8" class="font-main teal signature-label" text-anchor="start">Руководитель программы</text><line x1="45" y1="8" x2="90" y2="8" stroke="#005F6B" stroke-width="0.3"/></g></g></g></g></svg>',
-                isDefault: true,
-                isStandard: true
-            }
-        ];
+// ============================================
+// IMPORTANT: DELETE loadDefaultTemplates() 
+// method completely - it should NOT exist
+// ============================================
 
-        defaults.forEach(t => {
-            t.id = Date.now().toString() + Math.random();
-            AppState.templates.push(t);
-        });
+
+    async loadTemplatesFromBackend() {
+    try {
+        console.log('📡 Loading templates from backend...');
+        const response = await fetch('/api/v1/templates');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const templates = await response.json();
+        console.log('✅ Loaded templates:', templates.length);
+        
+        AppState.templates = templates;
+        this.renderTemplates();
+    } catch (error) {
+        console.error('❌ Error loading templates:', error);
+        AppState.templates = [];
+        this.renderTemplates();
     }
+}
 
     renderTemplates() {
         const grid = document.getElementById('templatesGrid');
@@ -398,35 +429,43 @@ class TemplatesManager {
     }
 
     saveTemplate() {
-        const name = document.getElementById('templateName').value.trim();
-        const desc = document.getElementById('templateDesc').value.trim();
-        const content = document.getElementById('templateContent').value.trim();
-        const type = document.getElementById('templateTypeDisplay').textContent.toLowerCase();
+    const name = document.getElementById('templateName').value.trim();
+    const desc = document.getElementById('templateDesc').value.trim();
+    const content = document.getElementById('templateContent').value.trim();
+    const type = document.getElementById('templateTypeDisplay').textContent.toLowerCase();
 
-        if (!name) {
-            alert('Пожалуйста, введите название шаблона');
-            return;
-        }
+    if (!name) {
+        alert('Пожалуйста, введите название шаблона');
+        return;
+    }
 
-        if (type === 'html' && !content) {
-            alert('HTML шаблон не может быть пустым');
-            return;
-        }
+    if (type === 'html' && !content) {
+        alert('HTML шаблон не может быть пустым');
+        return;
+    }
 
         if (type === 'svg' && !this.loadedFile && !content) {
             alert('Пожалуйста, загрузите SVG файл или вставьте SVG код');
             return;
         }
 
-        const template = {
-            name,
-            description: desc,
-            content: null,
-            contentName: null,
-            type,
-            isDefault: false,
-            isStandard: false
-        };
+    const template = {
+        id: this.editingId || Math.random().toString(36).substr(2, 9),
+        name,
+        description: desc,
+        content: null,
+        contentName: null,
+        type,
+        isDefault: false,
+        isStandard: false
+    };
+
+    if (type === 'html') {
+        template.content = content;
+    } else if (type === 'pdf' && this.loadedFile) {
+        template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
+        template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
+    }
 
         if (type === 'html') {
             template.content = content;
@@ -440,21 +479,15 @@ class TemplatesManager {
             }
             template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
         }
-
-        if (this.editingId) {
-            // Revoke previous blob URL if exists before replacing
-            const prev = AppState.templates.find(t => t.id === this.editingId);
-            if (prev && prev.content && prev.content.startsWith && prev.content.startsWith('blob:') && prev.content !== template.content) {
-                try { URL.revokeObjectURL(prev.content); } catch (e) {}
-            }
-            AppState.updateTemplate(this.editingId, template);
-        } else {
-            AppState.addTemplate(template);
-        }
-
-        this.closeModal();
-        this.renderTemplates();
+        AppState.updateTemplate(this.editingId, template);
+    } else {
+        AppState.addTemplate(template);
     }
+
+    this.closeModal();
+    this.renderTemplates();
+}
+
 
     deleteTemplate(templateId) {
         if (!confirm('Вы уверены? Это удалит шаблон.')) return;

@@ -118,9 +118,21 @@ class GenerateManager {
                 send_email: AppState.emailsEnabled
             });
 
-            ui.showStatus('generateStatus', 'Генерация завершена!', 'success');
-            document.getElementById('generateStatus').classList.remove('hidden');
-            document.getElementById('restartBtn').classList.remove('hidden');
+            if (response.batch_id) {
+    console.log('📦 Downloading ZIP:', response.batch_id);
+    const downloadUrl = `/api/v1/certificates/download/${response.batch_id}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `certificates_${response.batch_id}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    console.log('✅ ZIP download started');
+}
+
+ui.showStatus('generateStatus', 'Генерация завершена! ZIP скачивается...', 'success');
+document.getElementById('generateStatus').classList.remove('hidden');
+document.getElementById('restartBtn').classList.remove('hidden');
         } catch (error) {
             ui.showStatus('generateStatus', `Ошибка: ${error.message}`, 'error');
             document.getElementById('generateBtn').style.display = 'block';
