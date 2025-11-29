@@ -1,13 +1,23 @@
 class UploadManager {
     constructor() {
         this.uploadedFile = null;
-        this.init();
+        try {
+            this.init();
+        } catch (error) {
+            console.error('❌ Error in UploadManager.init():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     init() {
+        console.log('📍 UploadManager.init() called');
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const clearBtn = document.getElementById('clearUploadBtn');
+
+        console.log('  - uploadArea:', !!uploadArea);
+        console.log('  - fileInput:', !!fileInput);
+        console.log('  - clearBtn:', !!clearBtn);
 
         uploadArea.addEventListener('dragover', (e) => {
             if (this.uploadedFile) return;
@@ -34,14 +44,29 @@ class UploadManager {
         clearBtn.addEventListener('click', () => this.clearUpload());
 
         // Download example files
-        document.getElementById('downloadXlsx').addEventListener('click', () => this.downloadExample('xlsx'));
-        document.getElementById('downloadCsv').addEventListener('click', () => this.downloadExample('csv'));
+        const downloadXlsxBtn = document.getElementById('downloadXlsx');
+        const downloadCsvBtn = document.getElementById('downloadCsv');
+        console.log('  - downloadXlsxBtn:', !!downloadXlsxBtn);
+        console.log('  - downloadCsvBtn:', !!downloadCsvBtn);
+        
+        if (downloadXlsxBtn) {
+            downloadXlsxBtn.addEventListener('click', () => {
+                console.log('🖱️ Download XLSX clicked');
+                this.downloadExample('xlsx');
+            });
+        }
+        if (downloadCsvBtn) {
+            downloadCsvBtn.addEventListener('click', () => {
+                console.log('🖱️ Download CSV clicked');
+                this.downloadExample('csv');
+            });
+        }
 
         this.updateUploadAreaState();
     }
 
     downloadExample(format) {
-        const data = `ФИО,Почта,Роль,Место
+        const csvData = `ФИО,Почта,Роль,Место
 Пупкин Василий Жёнович,vasiliy@pupka.net,Победитель,1
 Любопыткина Варвара Безносая,varvara@nosa.net,Участник,
 Иванов Петр Сергеевич,peter@ivan.ru,Победитель,2
@@ -49,13 +74,35 @@ class UploadManager {
 Смирнов Иван Николаевич,ivan@smirnov.org,Участник,3
 Козлова Елена Петровна,elena@kozlova.net,Участник,`;
 
-        const blob = new Blob([data], { type: format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `example_participants.${format}`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        if (format === 'xlsx') {
+            // Create proper Excel file using XLSX library
+            if (typeof XLSX === 'undefined') {
+                alert('XLSX библиотека ещё загружается. Пожалуйста, попробуйте снова через 1-2 секунды.');
+                return;
+            }
+            try {
+                const lines = csvData.split('\n');
+                const data = lines.map(line => 
+                    line.split(',').map(cell => cell.trim())
+                );
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Participants");
+                XLSX.writeFile(wb, `example_participants.${format}`);
+            } catch (error) {
+                alert(`Ошибка при создании Excel файла: ${error.message}`);
+                console.error('XLSX error:', error);
+            }
+        } else {
+            // CSV download
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `example_participants.${format}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
     }
 
     updateUploadAreaState() {
@@ -96,6 +143,12 @@ class UploadManager {
                 AppState.rolesUsed,
                 AppState.placesUsed
             );
+            // Reset preview index to first participant so UI shows 1 / total
+            if (typeof AppState.setPreviewIndex === 'function') {
+                AppState.setPreviewIndex(1);
+            } else {
+                AppState.previewIndex = 1;
+            }
             
             document.getElementById('clearUploadBtn').classList.remove('hidden');
             this.updateUploadAreaState();
@@ -126,7 +179,3 @@ class UploadManager {
         ui.disableNextSteps('templates');
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    window.uploadManager = new UploadManager();
-});

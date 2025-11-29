@@ -2,7 +2,12 @@ class GenerateManager {
     constructor() {
         this.isGenerating = false;
         this.maxRecipients = 0;
-        this.init();
+        try {
+            this.init();
+        } catch (error) {
+            console.error('❌ Error in GenerateManager.init():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     init() {
@@ -27,7 +32,9 @@ class GenerateManager {
             }
             
             AppState.setRecipientCount(value);
-            document.getElementById('previewRecipients').textContent = value;
+            // previewRecipients should show total certificates, not the selected number
+            const total = AppState.participants ? AppState.participants.length : 0;
+            document.getElementById('previewRecipients').textContent = total || Math.min(90, this.maxRecipients);
         });
     }
 
@@ -36,7 +43,8 @@ class GenerateManager {
         document.getElementById('recipientsCountInput').max = max;
         document.getElementById('recipientsCountInput').value = Math.min(90, max);
         AppState.setRecipientCount(Math.min(90, max));
-        document.getElementById('previewRecipients').textContent = Math.min(90, max);
+        // previewRecipients represents total certificates available
+        document.getElementById('previewRecipients').textContent = max;
     }
 
     async generate() {
@@ -124,7 +132,3 @@ class GenerateManager {
         ui.goToPage('upload');
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    window.generateManager = new GenerateManager();
-});

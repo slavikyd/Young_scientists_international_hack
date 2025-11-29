@@ -12,6 +12,7 @@ const AppState = {
     // Generate data
     emailsEnabled: true,
     recipientCount: 90,
+    previewIndex: 1,
     
     // setters
     setUploadedFile(file) {
@@ -61,6 +62,10 @@ const AppState = {
     
     setRecipientCount(count) {
         this.recipientCount = count;
+    },
+
+    setPreviewIndex(index) {
+        this.previewIndex = index;
     },
     
     reset() {

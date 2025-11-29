@@ -3,38 +3,59 @@ class TemplatesManager {
         this.editingId = null;
         this.loadedFile = null;
         this.isCreating = false;
-        this.init();
+        try {
+            this.init();
+        } catch (error) {
+            console.error('❌ Error in TemplatesManager.init():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     init() {
-        document.getElementById('addTemplateBtn').addEventListener('click', () => this.openCreateModal());
-        document.getElementById('modalClose').addEventListener('click', () => this.closeModal());
-        document.getElementById('modalCancel').addEventListener('click', () => this.closeModal());
-        document.getElementById('modalSave').addEventListener('click', () => this.saveTemplate());
-        document.getElementById('modalBackdrop').addEventListener('click', () => this.closeModal());
-        
-        document.getElementById('chooseFileBtn').addEventListener('click', () => this.chooseFile());
-        document.getElementById('insertCodeBtn').addEventListener('click', () => this.insertCode());
-        document.getElementById('deleteFileBtn').addEventListener('click', () => this.deleteFile());
-        document.getElementById('templateFileInput').addEventListener('change', (e) => this.handleTemplateFile(e));
-        document.getElementById('fileUploadArea').addEventListener('dragover', (e) => {
-            e.preventDefault();
-            document.getElementById('fileUploadArea').classList.add('dragover');
+        console.log('📍 TemplatesManager.init() called');
+        // Attach listeners defensively (elements might be missing or dynamically replaced)
+        const safeOn = (id, evt, cb) => {
+            const el = document.getElementById(id);
+            console.log(`  - ${id}:`, !!el);
+            if (el) el.addEventListener(evt, cb);
+        };
+
+        safeOn('addTemplateBtn', 'click', () => {
+            console.log('🖱️ Add Template button clicked');
+            this.openCreateModal();
         });
-        document.getElementById('fileUploadArea').addEventListener('dragleave', () => {
-            document.getElementById('fileUploadArea').classList.remove('dragover');
-        });
-        document.getElementById('fileUploadArea').addEventListener('drop', (e) => {
-            e.preventDefault();
-            document.getElementById('fileUploadArea').classList.remove('dragover');
-            this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
-        });
-        document.getElementById('fileUploadArea').addEventListener('click', () => this.chooseFile());
-        
-        document.getElementById('previewBackdrop').addEventListener('click', () => this.closePreviewModal());
-        document.getElementById('previewClose').addEventListener('click', () => this.closePreviewModal());
-        document.getElementById('expandPreviewBtn').addEventListener('click', () => this.openFullPreview());
-        document.getElementById('templateContent').addEventListener('input', () => this.updateCodePreview());
+        safeOn('modalClose', 'click', () => this.closeModal());
+        safeOn('modalCancel', 'click', () => this.closeModal());
+        safeOn('modalSave', 'click', () => this.saveTemplate());
+        safeOn('modalBackdrop', 'click', () => this.closeModal());
+
+        safeOn('chooseFileBtn', 'click', () => this.chooseFile());
+        safeOn('insertCodeBtn', 'click', () => this.insertCode());
+        safeOn('deleteFileBtn', 'click', () => this.deleteFile());
+        const fileInput = document.getElementById('templateFileInput');
+        if (fileInput) fileInput.addEventListener('change', (e) => this.handleTemplateFile(e));
+
+        const uploadArea = document.getElementById('fileUploadArea');
+        if (uploadArea) {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                this.handleTemplateFile({ target: { files: e.dataTransfer.files } });
+            });
+            uploadArea.addEventListener('click', () => this.chooseFile());
+        }
+
+        safeOn('previewBackdrop', 'click', () => this.closePreviewModal());
+        safeOn('previewClose', 'click', () => this.closePreviewModal());
+        const expandBtn = document.getElementById('expandPreviewBtn');
+        if (expandBtn) expandBtn.addEventListener('click', () => this.openFullPreview());
+        const tmplContent = document.getElementById('templateContent');
+        if (tmplContent) tmplContent.addEventListener('input', () => this.updateCodePreview());
 
         this.loadDefaultTemplates();
         this.renderTemplates();
@@ -68,19 +89,22 @@ class TemplatesManager {
 
     renderTemplates() {
         const grid = document.getElementById('templatesGrid');
-        grid.innerHTML = AppState.templates.map((template, idx) => `
+        grid.innerHTML = AppState.templates.map((template, idx) => {
+            const typeIcon = template.type === 'html' ? '<>' : '📄';
+            return `
             <div class="template-card" data-template-id="${template.id}">
                 <div class="template-card-header">
-                    <div class="template-icon">${template.type === 'html' ? '</>' : '📄'}</div>
-                    <div class="template-info">
-                        <div class="template-name">${template.name}</div>
-                        <div class="template-type">${template.type.toUpperCase()}</div>
+                    <div style="font-size: 24px; margin-right: 12px;">${typeIcon}</div>
+                    <div style="flex: 1;">
+                        <div class="template-card-name">${template.name}</div>
+                        <div class="template-card-type">${template.type.toUpperCase()}</div>
                     </div>
                 </div>
-                ${AppState.selectedTemplate === template.id ? '<div class="template-is-selected">✓</div>' : ''}
-                <button class="menu-btn" data-template-id="${template.id}">⋮</button>
+                ${AppState.selectedTemplate === template.id ? '<div style="color: var(--color-primary); font-weight: bold; font-size: 18px;">✓</div>' : ''}
+                <button class="menu-btn" data-template-id="${template.id}" style="position: absolute; top: 10px; right: 10px;">⋮</button>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         document.querySelectorAll('.menu-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -91,14 +115,31 @@ class TemplatesManager {
         });
 
         document.querySelectorAll('.template-card').forEach((card) => {
+            const templateId = card.getAttribute('data-template-id');
+            // clicking the card selects template
             card.addEventListener('click', () => {
-                const templateId = card.getAttribute('data-template-id');
                 const template = AppState.templates.find(t => t.id === templateId);
                 AppState.selectTemplate(template.id);
+                if (typeof AppState.setPreviewIndex === 'function') AppState.setPreviewIndex(1);
+                else AppState.previewIndex = 1;
                 this.renderTemplates();
                 ui.updateGeneratePreview();
                 ui.enableNextSteps('generate');
             });
+
+            // add a small preview button inside card for direct preview
+            const previewBtn = document.createElement('button');
+            previewBtn.className = 'template-preview-btn';
+            previewBtn.title = 'Предпросмотр';
+            previewBtn.innerHTML = '👁️';
+            previewBtn.style.position = 'absolute';
+            previewBtn.style.left = '10px';
+            previewBtn.style.top = '10px';
+            previewBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openViewModal(templateId);
+            });
+            card.appendChild(previewBtn);
         });
     }
 
@@ -136,21 +177,33 @@ class TemplatesManager {
     }
 
     openCreateModal() {
-        this.isCreating = true;
-        this.editingId = null;
-        this.loadedFile = null;
-        document.getElementById('modalTitle').textContent = 'Создание шаблона';
-        document.getElementById('templateName').value = '';
-        document.getElementById('templateDesc').value = '';
-        document.getElementById('templateContent').value = '';
-        document.getElementById('codeEditorSection').classList.add('hidden');
-        document.getElementById('fileUploadArea').classList.remove('hidden');
-        document.getElementById('loadedFileInfo').classList.add('hidden');
-        document.getElementById('templateTypeDisplay').textContent = 'HTML';
-        document.getElementById('templateFileInput').value = '';
-        document.getElementById('templateInputButtons').style.display = 'flex';
-        this.updateCodePreview();
-        this.openModal();
+        try {
+            console.log('📝 openCreateModal() starting...');
+            this.isCreating = true;
+            this.editingId = null;
+            this.loadedFile = null;
+            console.log('  - setting title...');
+            document.getElementById('modalTitle').textContent = 'Создание шаблона';
+            console.log('  - clearing inputs...');
+            document.getElementById('templateName').value = '';
+            document.getElementById('templateDesc').value = '';
+            document.getElementById('templateContent').value = '';
+            console.log('  - toggling visibility...');
+            document.getElementById('codeEditorSection').classList.add('hidden');
+            document.getElementById('fileUploadArea').classList.remove('hidden');
+            document.getElementById('loadedFileInfo').classList.add('hidden');
+            document.getElementById('templateTypeDisplay').textContent = 'HTML';
+            document.getElementById('templateFileInput').value = '';
+            document.getElementById('templateInputButtons').style.display = 'flex';
+            console.log('  - updating preview...');
+            this.updateCodePreview();
+            console.log('  - calling openModal()...');
+            this.openModal();
+            console.log('✅ openCreateModal() complete');
+        } catch (error) {
+            console.error('❌ Error in openCreateModal():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     openEditModal(templateId) {
@@ -170,6 +223,13 @@ class TemplatesManager {
             document.getElementById('fileUploadArea').classList.remove('hidden');
             document.getElementById('loadedFileInfo').classList.add('hidden');
             document.getElementById('templateInputButtons').style.display = 'none';
+            // If template already has a blob URL stored, set as loadedFile for editing
+            if (template.content && (template.content.startsWith('blob:') || template.content.startsWith('http'))) {
+                this.loadedFile = { file: null, type: 'pdf', blobUrl: template.content, name: template.contentName || '' };
+                if (this.loadedFile.name) document.getElementById('loadedFileName').textContent = `Файл ${this.loadedFile.name} загружен`;
+                document.getElementById('loadedFileInfo').classList.remove('hidden');
+                document.getElementById('fileUploadArea').classList.add('hidden');
+            }
         } else {
             document.getElementById('templateContent').value = template.content || '';
             document.getElementById('codeEditorSection').classList.remove('hidden');
@@ -185,13 +245,25 @@ class TemplatesManager {
     openViewModal(templateId) {
         const template = AppState.templates.find(t => t.id === templateId);
         if (!template) return;
+        const container = document.getElementById('fullPreviewContainer');
 
         if (template.type === 'pdf') {
-            alert('Просмотр PDF документов открывается в отдельной программе');
+            // If we have a blob URL or http url, open in pdfViewer
+            if (window.pdfViewer && template.content) {
+                window.pdfViewer.showPDF(template.content);
+                // ensure pdf viewer container is visible
+                const pv = document.getElementById('pdfViewerContainer');
+                if (pv) pv.classList.remove('hidden');
+                return;
+            }
+
+            // fallback: show message in preview modal
+            container.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен.</div>';
+            document.getElementById('previewModal').classList.remove('hidden');
             return;
         }
 
-        const container = document.getElementById('fullPreviewContainer');
+        // HTML template: render in iframe in modal
         const iframe = document.createElement('iframe');
         iframe.style.width = '100%';
         iframe.style.height = '100%';
@@ -220,18 +292,44 @@ class TemplatesManager {
     }
 
     openModal() {
-        document.getElementById('templateModal').classList.remove('hidden');
+        try {
+            console.log('🔓 openModal() - opening modal');
+            const modal = document.getElementById('templateModal');
+            if (!modal) {
+                console.error('❌ templateModal element not found!');
+                return;
+            }
+            console.log('  - modal found, current classes:', modal.className);
+            modal.classList.remove('hidden');
+            modal.classList.add('active');
+            console.log('  - classes updated:', modal.className);
+        } catch (error) {
+            console.error('❌ Error in openModal():', error);
+        }
     }
 
     closeModal() {
-        document.getElementById('templateModal').classList.add('hidden');
-        this.editingId = null;
-        this.loadedFile = null;
-        this.isCreating = false;
+        try {
+            const modal = document.getElementById('templateModal');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.classList.add('hidden');
+            }
+            this.editingId = null;
+            this.loadedFile = null;
+            this.isCreating = false;
+        } catch (error) {
+            console.error('❌ Error in closeModal():', error);
+        }
     }
 
     closePreviewModal() {
-        document.getElementById('previewModal').classList.add('hidden');
+        try {
+            const modal = document.getElementById('previewModal');
+            if (modal) modal.classList.add('hidden');
+        } catch (error) {
+            console.error('❌ Error in closePreviewModal():', error);
+        }
     }
 
     openFullPreview() {
@@ -255,7 +353,8 @@ class TemplatesManager {
 
         const type = file.name.endsWith('.pdf') ? 'pdf' : 'html';
         document.getElementById('templateTypeDisplay').textContent = type.toUpperCase();
-        this.loadedFile = { file, type };
+        const blobUrl = URL.createObjectURL(file);
+        this.loadedFile = { file, type, blobUrl };
 
         if (type === 'pdf') {
             document.getElementById('codeEditorSection').classList.add('hidden');
@@ -308,13 +407,27 @@ class TemplatesManager {
         const template = {
             name,
             description: desc,
-            content: type === 'html' ? content : this.loadedFile?.file?.name || null,
+            content: null,
+            contentName: null,
             type,
             isDefault: false,
             isStandard: false
         };
 
+        if (type === 'html') {
+            template.content = content;
+        } else if (type === 'pdf' && this.loadedFile) {
+            // store blob URL for preview
+            template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
+            template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
+        }
+
         if (this.editingId) {
+            // Revoke previous blob URL if exists before replacing
+            const prev = AppState.templates.find(t => t.id === this.editingId);
+            if (prev && prev.content && prev.content.startsWith && prev.content.startsWith('blob:') && prev.content !== template.content) {
+                try { URL.revokeObjectURL(prev.content); } catch (e) {}
+            }
             AppState.updateTemplate(this.editingId, template);
         } else {
             AppState.addTemplate(template);
@@ -331,12 +444,13 @@ class TemplatesManager {
             AppState.selectTemplate(null);
             ui.disableNextSteps('templates-select');
         }
-        
+        // Revoke blob URL if present
+        const tpl = AppState.templates.find(t => t.id === templateId);
+        if (tpl && tpl.content && tpl.content.startsWith && tpl.content.startsWith('blob:')) {
+            try { URL.revokeObjectURL(tpl.content); } catch (e) {}
+        }
+
         AppState.deleteTemplate(templateId);
         this.renderTemplates();
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    window.templatesManager = new TemplatesManager();
-});

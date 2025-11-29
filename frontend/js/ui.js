@@ -1,13 +1,42 @@
 class UIManager {
     constructor() {
         this.currentPage = 'upload';
-        this.init();
+        try {
+            this.init();
+        } catch (error) {
+            console.error('❌ Error in UIManager.init():', error);
+            console.error('Stack:', error.stack);
+        }
     }
 
     init() {
         this.setupPageNavigation();
         this.setupLanguageSelector();
         this.disableAllNextSteps();
+        this.setupGenerateNavigation();
+    }
+
+    setupGenerateNavigation() {
+        const prevBtn = document.getElementById('prevRecipientBtn');
+        const nextBtn = document.getElementById('nextRecipientBtn');
+
+        if (prevBtn) prevBtn.addEventListener('click', () => {
+            const total = AppState.participants.length;
+            if (total === 0) return;
+            const current = AppState.previewIndex || 1;
+            const prev = Math.max(1, current - 1);
+            if (typeof AppState.setPreviewIndex === 'function') AppState.setPreviewIndex(prev); else AppState.previewIndex = prev;
+            this.updateGeneratePreview();
+        });
+
+        if (nextBtn) nextBtn.addEventListener('click', () => {
+            const total = AppState.participants.length;
+            if (total === 0) return;
+            const current = AppState.previewIndex || 1;
+            const next = Math.min(total, current + 1);
+            if (typeof AppState.setPreviewIndex === 'function') AppState.setPreviewIndex(next); else AppState.previewIndex = next;
+            this.updateGeneratePreview();
+        });
     }
 
     setupPageNavigation() {
@@ -19,6 +48,29 @@ class UIManager {
                 this.goToPage(step);
             });
         });
+
+        // Setup "Next" buttons
+        const nextFromUploadBtn = document.getElementById('nextFromUpload');
+        if (nextFromUploadBtn) {
+            nextFromUploadBtn.addEventListener('click', () => {
+                if (AppState.uploadedFile && AppState.participants.length > 0) {
+                    this.goToPage('templates');
+                } else {
+                    alert('Пожалуйста, загрузите файл с участниками');
+                }
+            });
+        }
+
+        const nextFromTemplatesBtn = document.getElementById('nextFromTemplates');
+        if (nextFromTemplatesBtn) {
+            nextFromTemplatesBtn.addEventListener('click', () => {
+                if (AppState.selectedTemplate) {
+                    this.goToPage('generate');
+                } else {
+                    alert('Пожалуйста, выберите шаблон');
+                }
+            });
+        }
     }
 
     setupLanguageSelector() {
@@ -39,8 +91,12 @@ class UIManager {
     enableNextSteps(stepName) {
         if (stepName === 'templates') {
             document.querySelector('[data-step="templates"]').classList.remove('disabled');
+            const nextBtn = document.getElementById('nextFromUpload');
+            if (nextBtn) nextBtn.removeAttribute('disabled');
         } else if (stepName === 'generate') {
             document.querySelector('[data-step="generate"]').classList.remove('disabled');
+            const nextBtn2 = document.getElementById('nextFromTemplates');
+            if (nextBtn2) nextBtn2.removeAttribute('disabled');
         }
     }
 
@@ -48,8 +104,14 @@ class UIManager {
         if (stepName === 'templates') {
             document.querySelector('[data-step="templates"]').classList.add('disabled');
             document.querySelector('[data-step="generate"]').classList.add('disabled');
+            const nextBtn = document.getElementById('nextFromUpload');
+            if (nextBtn) nextBtn.setAttribute('disabled', '');
+            const nextBtn2 = document.getElementById('nextFromTemplates');
+            if (nextBtn2) nextBtn2.setAttribute('disabled', '');
         } else if (stepName === 'templates-select') {
             document.querySelector('[data-step="generate"]').classList.add('disabled');
+            const nextBtn2 = document.getElementById('nextFromTemplates');
+            if (nextBtn2) nextBtn2.setAttribute('disabled', '');
         }
     }
 
@@ -122,23 +184,114 @@ class UIManager {
         const certCount = AppState.participants.length;
 
         this.updateTextContent('previewFileName', fileName);
-        this.updateTextContent('previewCertCount', certCount);
-        
+        const current = (AppState.previewIndex && AppState.previewIndex > 0) ? AppState.previewIndex : 1;
+        this.updateTextContent('previewCertCount', `${current} / ${certCount}`);
         if (selectedTemplate) {
             const templateName = `${selectedTemplate.isDefault ? 'Стандартный' : ''} шаблон ${selectedTemplate.type.toUpperCase()} ${selectedTemplate.type === 'html' ? '</>' : '📄'}`;
             this.updateTextContent('previewTemplateName', templateName);
         }
 
+        // Render participant preview (HTML template or PDF placeholder)
+        this.renderParticipantPreview();
+
         const emailToggle = document.getElementById('sendEmailToggle');
         const recipientsItem = document.getElementById('recipientsCountItem');
         
-        if (emailToggle.checked) {
+        if (emailToggle && emailToggle.checked) {
             this.showElement('recipientsCountItem');
         } else {
             this.hideElement('recipientsCountItem');
         }
     }
-}
 
-const ui = new UIManager();
-window.ui = ui;
+    renderParticipantPreview() {
+        const template = AppState.getSelectedTemplate();
+        const total = AppState.participants.length;
+        const currentIndex = (AppState.previewIndex && AppState.previewIndex > 0) ? AppState.previewIndex : 1;
+        const participant = AppState.participants[currentIndex - 1];
+
+        const pdfContainer = document.getElementById('pdfViewerContainer');
+        const pdfViewerDiv = document.getElementById('pdfViewer');
+        const htmlPreview = document.getElementById('certificateHtmlPreview');
+        const pdfCanvas = document.getElementById('pdfCanvas');
+
+        // Hide both preview areas first
+        if (htmlPreview) htmlPreview.classList.add('hidden');
+        if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+        if (pdfContainer) pdfContainer.classList.remove('hidden'); // keep container visible for controls
+
+        if (!template) {
+            // No template selected: show placeholder
+            if (htmlPreview) {
+                htmlPreview.innerHTML = '<div class="preview-placeholder">Пожалуйста, выберите шаблон</div>';
+                htmlPreview.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (template.type === 'html') {
+            // Render HTML template with placeholders replaced by participant values
+            const content = template.content || '';
+            let rendered = content;
+            if (participant) {
+                // Replace common placeholder keys
+                const map = {};
+                // map russian headers
+                Object.keys(participant).forEach(k => map[k.toLowerCase()] = participant[k]);
+                // common english aliases
+                map['participant_name'] = participant['фио'] || participant['name'] || participant['fio'] || '';
+                map['email'] = participant['почта'] || participant['email'] || '';
+                map['role'] = participant['роль'] || participant['role'] || '';
+                map['place'] = participant['место'] || participant['place'] || '';
+
+                // Replace {{key}} occurrences
+                rendered = rendered.replace(/{{\s*([^}]+)\s*}}/g, (m, key) => {
+                    const lk = key.toLowerCase();
+                    return (map[lk] !== undefined) ? map[lk] : '';
+                });
+            }
+
+            // Inject into iframe inside htmlPreview
+            if (htmlPreview) {
+                const iframe = document.createElement('iframe');
+                iframe.style.width = '100%';
+                iframe.style.height = '500px';
+                iframe.style.border = 'none';
+                iframe.srcdoc = rendered;
+                htmlPreview.innerHTML = '';
+                htmlPreview.appendChild(iframe);
+                htmlPreview.classList.remove('hidden');
+                if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+            }
+        } else if (template.type === 'pdf') {
+            // For PDF templates we try to open the PDF if available (not always possible in current mock setup)
+            // If template.content contains a filename and templatesManager has the file stored, try to show it via pdfViewer
+            if (window.pdfViewer && template.content) {
+                // Try to resolve a Blob URL via templatesManager.loadedFile if available
+                // Best-effort: search templates list for a matching uploaded file name
+                const t = AppState.templates.find(tpl => tpl.id === AppState.selectedTemplate);
+                if (t && t.content && t.content.endsWith('.pdf')) {
+                    // If content looks like a URL, try to load it in PDF viewer
+                    if (t.content.startsWith('http')) {
+                        window.pdfViewer.showPDF(t.content);
+                        if (pdfViewerDiv) pdfViewerDiv.classList.remove('hidden');
+                        if (htmlPreview) htmlPreview.classList.add('hidden');
+                    } else {
+                        // No reliable URL in mock; show notice instead
+                        if (htmlPreview) {
+                            htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен для этого шаблона в режиме эмуляции.</div>';
+                            htmlPreview.classList.remove('hidden');
+                            if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                        }
+                    }
+                } else {
+                    if (htmlPreview) {
+                        htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен.</div>';
+                        htmlPreview.classList.remove('hidden');
+                        if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                    }
+                }
+            }
+        }
+    }
+}
