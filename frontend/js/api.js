@@ -1,12 +1,14 @@
-// API Configuration - FIXED FOR NGINX PROXY
-// Frontend runs on 8001, nginx proxies /api/* to backend on 8000
 const API_BASE_URL = '/api/v1';
-const MOCK_MODE = true;
 
 class CertificateAPI {
-    constructor() {
-        this.baseURL = API_BASE_URL;
-        this.mockMode = MOCK_MODE;
+    async uploadParticipants(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        return fetch(`${API_BASE_URL}/participants/upload`, {
+            method: 'POST',
+            body: formData,
+        }).then(res => this.handleResponse(res));
     }
 
     parseCSV(text) {

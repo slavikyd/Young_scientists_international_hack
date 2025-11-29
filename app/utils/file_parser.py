@@ -1,112 +1,73 @@
-import pandas as pd
-from typing import List, Tuple
+import csv
+import io
 import logging
-from io import BytesIO
-
-from app.schemas.participant import ParticipantRole, ParticipantPlace
-
+from typing import List, Dict, Any
+import openpyxl
 
 logger = logging.getLogger(__name__)
 
 
-class FileParseError(Exception):
-    """Custom exception for file parsing errors."""
-    pass
+def parse_csv(file_content: bytes) -> List[Dict[str, Any]]:
+    """
+    Parse CSV file content.
+    
+    Args:
+        file_content: File content as bytes
+        
+    Returns:
+        List of dictionaries with parsed data
+    """
+    try:
+        # Decode bytes to string
+        text = file_content.decode('utf-8')
+        
+        # Parse CSV
+        reader = csv.DictReader(io.StringIO(text))
+        rows = list(reader)
+        
+        logger.info(f"Parsed {len(rows)} rows from CSV")
+        return rows
+        
+    except Exception as e:
+        logger.error(f"Error parsing CSV: {e}")
+        raise
 
 
-class CSVXLSXParser:
-    """Parser for CSV and XLSX files."""
+def parse_xlsx(file_content: bytes) -> List[Dict[str, Any]]:
+    """
+    Parse XLSX file content.
     
-    REQUIRED_COLUMNS = ["full_name", "email", "role"]
-    OPTIONAL_COLUMNS = ["place"]
-    
-    @staticmethod
-    def parse_file(file_content: bytes, filename: str) -> Tuple[List[dict], List[str]]:
-        """
-        Parse CSV or XLSX file and return list of participant dictionaries.
+    Args:
+        file_content: File content as bytes
         
-        Args:
-            file_content: Raw file bytes
-            filename: Original filename
-            
-        Returns:
-            Tuple of (participants_list, errors_list)
-        """
-        try:
-            if filename.endswith('.csv'):
-                df = pd.read_csv(BytesIO(file_content))
-            elif filename.endswith('.xlsx'):
-                df = pd.read_excel(BytesIO(file_content))
-            else:
-                raise FileParseError(f"Unsupported file format: {filename}")
-            
-            # Validate required columns
-            missing_cols = set(CSVXLSXParser.REQUIRED_COLUMNS) - set(df.columns)
-            if missing_cols:
-                raise FileParseError(f"Missing required columns: {missing_cols}")
-            
-            # Normalize column names to lowercase
-            df.columns = df.columns.str.lower().str.strip()
-            
-            participants = []
-            errors = []
-            
-            for idx, row in df.iterrows():
-                try:
-                    participant = CSVXLSXParser._parse_row(row, idx)
-                    participants.append(participant)
-                except Exception as e:
-                    error_msg = f"Row {idx + 1}: {str(e)}"
-                    logger.warning(error_msg)
-                    errors.append(error_msg)
-            
-            if not participants:
-                raise FileParseError("No valid participants found in file")
-            
-            return participants, errors
+    Returns:
+        List of dictionaries with parsed data
+    """
+    try:
+        # Load workbook from bytes
+        wb = openpyxl.load_workbook(io.BytesIO(file_content))
+        ws = wb.active
         
-        except FileParseError:
-            raise
-        except Exception as e:
-            logger.error(f"Error parsing file {filename}: {e}")
-            raise FileParseError(f"Failed to parse file: {str(e)}")
-    
-    @staticmethod
-    def _parse_row(row: pd.Series, row_index: int) -> dict:
-        """Parse a single row from the dataframe."""
-        full_name = str(row.get('full_name', '')).strip()
-        email = str(row.get('email', '')).strip()
-        role = str(row.get('role', '')).strip().lower()
-        place = row.get('place', None)
+        # Get header row
+        headers = []
+        for cell in ws[1]:
+            headers.append(cell.value)
         
-        # Validate full name
-        if not full_name or len(full_name) < 2:
-            raise ValueError("Full name must be at least 2 characters")
+        # Parse rows
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            row_data = {}
+            for col_idx, header in enumerate(headers, 1):
+                cell_value = ws.cell(row=row_idx, column=col_idx).value
+                row_data[header] = cell_value
+            
+            # Only add non-empty rows
+            if any(row_data.values()):
+                rows.append(row_data)
         
-        # Validate email
-        if not email or '@' not in email:
-            raise ValueError(f"Invalid email: {email}")
+        logger.info(f"Parsed {len(rows)} rows from XLSX")
+        return rows
         
-        # Validate role
-        valid_roles = [r.value for r in ParticipantRole]
-        if role not in valid_roles:
-            raise ValueError(f"Invalid role: {role}. Must be one of {valid_roles}")
-        
-        # Validate place if provided
-        if pd.notna(place):
-            try:
-                place = int(place)
-                valid_places = [p.value for p in ParticipantPlace]
-                if place not in valid_places:
-                    raise ValueError(f"Invalid place: {place}. Must be one of {valid_places}")
-            except (ValueError, TypeError):
-                raise ValueError(f"Invalid place value: {place}")
-        else:
-            place = None
-        
-        return {
-            "full_name": full_name,
-            "email": email,
-            "role": role,
-            "place": place
-        }
+    except Exception as e:
+        logger.error(f"Error parsing XLSX: {e}")
+        raise

@@ -1,60 +1,73 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from enum import Enum
+from typing import Optional, List
 from datetime import datetime
 
 
-class TemplateType(str, Enum):
-    HTML = "html"
-    SVG = "svg"
-
-
 class TemplateCreate(BaseModel):
-    """Schema for creating a template."""
-    name: str = Field(..., min_length=1, max_length=255)
-    type: TemplateType
-    content: str = Field(..., description="Template content (HTML or SVG)")
-    variables: List[str] = Field(default_factory=list, description="Variable placeholders")
+    """Create template request."""
+    name: str = Field(..., description="Template name")
+    type: str = Field(default="html", description="Template type: html or svg")
+    content: str = Field(..., description="Template HTML/SVG content")
+    variables: Optional[List[str]] = Field(default_factory=list, description="Template variables")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "HTML Certificate",
+                "name": "Certificate Template",
                 "type": "html",
-                "content": "<html><body><h1>Certificate for {{name}}</h1></body></html>",
-                "variables": ["name", "role", "date"]
+                "content": "<html>...</html>",
+                "variables": ["name", "event_name"]
             }
         }
 
 
 class TemplateUpdate(BaseModel):
-    """Schema for updating a template."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    content: Optional[str] = None
-    variables: Optional[List[str]] = None
-
-
-class TemplateResponse(TemplateCreate):
-    """Schema for template responses."""
-    id: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    """Update template request."""
+    name: Optional[str] = Field(None, description="Template name")
+    content: Optional[str] = Field(None, description="Template content")
+    variables: Optional[List[str]] = Field(None, description="Template variables")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "id": "template-001",
-                "name": "HTML Certificate",
+                "name": "Updated Certificate",
+                "content": "<html>...</html>",
+                "variables": ["name", "place"]
+            }
+        }
+
+
+class TemplateResponse(BaseModel):
+    """Template response - metadata only (no content)."""
+    id: str = Field(..., description="Template ID")
+    name: str = Field(..., description="Template name")
+    type: str = Field(..., description="Template type")
+    variables: Optional[List[str]] = Field(default_factory=list, description="Template variables")
+    created_at: str = Field(..., description="Creation timestamp")
+    updated_at: Optional[str] = Field(None, description="Last update timestamp")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Certificate Template",
                 "type": "html",
-                "content": "<html><body><h1>Certificate for {{name}}</h1></body></html>",
-                "variables": ["name", "role", "date"],
-                "created_at": "2024-11-28T12:00:00Z",
+                "variables": ["name", "event_name"],
+                "created_at": "2024-11-28T10:00:00",
                 "updated_at": None
             }
         }
 
 
 class TemplateListResponse(BaseModel):
-    """Response for listing templates."""
-    templates: List[TemplateResponse]
-    total: int = Field(..., ge=0)
+    """List of templates response."""
+    templates: List[TemplateResponse] = Field(..., description="List of templates")
+    total: int = Field(..., description="Total template count")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "templates": [],
+                "total": 0
+            }
+        }

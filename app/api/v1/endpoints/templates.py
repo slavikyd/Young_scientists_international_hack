@@ -1,163 +1,135 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 import logging
+import os
 
 from app.services.template_service import TemplateService
-from app.schemas.template import (
-    TemplateCreate,
-    TemplateUpdate,
-    TemplateResponse,
-    TemplateListResponse
-)
-
+from app.schemas.template import TemplateCreate, TemplateResponse
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/templates")
 
 
 def get_template_service() -> TemplateService:
-    """Dependency for template service."""
     return TemplateService()
 
 
-@router.post(
-    "",
-    response_model=TemplateResponse,
-    status_code=201,
-    summary="Create new template"
-)
-async def create_template(
-    template: TemplateCreate,
+@router.post("/upload-zip", response_model=TemplateResponse)
+async def upload_template_zip(
+    file: UploadFile = File(...),
+    name: str = Form(...),
     service: TemplateService = Depends(get_template_service)
 ):
-    """
-    Create a new certificate template.
-    
-    Supported types: html, svg
-    Content can include {{variable}} placeholders for templating.
-    """
     try:
-        result = await service.create_template(template)
-        return result
+        logger.info(f"Uploading ZIP: {file.filename}")
+        zip_content = await file.read()
+        template = await service.upload_template_zip(zip_content, name)
+        return TemplateResponse(**template)
     except Exception as e:
-        logger.error(f"Error creating template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to create template"
-        )
+        logger.error(f"Error uploading ZIP: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get(
-    "",
-    response_model=TemplateListResponse,
-    summary="List all templates"
-)
-async def list_templates(
+@router.post("", response_model=TemplateResponse)
+@router.post("/", response_model=TemplateResponse)
+async def create_template(
+    request: TemplateCreate,
     service: TemplateService = Depends(get_template_service)
 ):
-    """Get all certificate templates."""
+    try:
+        logger.info(f"Creating template: {request.name}")
+        template = await service.create_template(
+            name=request.name,
+            content=request.content,
+            template_type=request.type
+        )
+        return TemplateResponse(**template)
+    except Exception as e:
+        logger.error(f"Error creating template: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("", response_model=list)
+@router.get("/", response_model=list)
+async def get_all_templates(
+    service: TemplateService = Depends(get_template_service)
+):
     try:
         templates = await service.get_all_templates()
-        return TemplateListResponse(
-            templates=templates,
-            total=len(templates)
-        )
+        if not templates:
+            logger.info("No templates found")
+            return []
+        logger.info(f"Found {len(templates)} templates")
+        return [TemplateResponse(**t) for t in templates]
     except Exception as e:
-        logger.error(f"Error listing templates: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve templates"
-        )
+        logger.error(f"Error getting templates: {e}", exc_info=True)
+        return []
 
 
-@router.get(
-    "/{template_id}",
-    response_model=TemplateResponse,
-    summary="Get template by ID"
-)
+@router.get("/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: str,
     service: TemplateService = Depends(get_template_service)
 ):
-    """Get a specific template by ID."""
     try:
         template = await service.get_template(template_id)
-        
         if not template:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Template {template_id} not found"
-            )
-        
-        return template
-    except HTTPException:
-        raise
+            raise HTTPException(status_code=404, detail="Template not found")
+        return TemplateResponse(**template)
     except Exception as e:
-        logger.error(f"Error getting template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve template"
-        )
+        logger.error(f"Error getting template: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put(
-    "/{template_id}",
-    response_model=TemplateResponse,
-    summary="Update template"
-)
+@router.put("/{template_id}", response_model=TemplateResponse)
 async def update_template(
     template_id: str,
-    template: TemplateUpdate,
+    request: TemplateCreate,
     service: TemplateService = Depends(get_template_service)
 ):
-    """Update an existing template."""
     try:
-        result = await service.update_template(template_id, template)
+        logger.info(f"Updating template: {template_id}")
         
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Template {template_id} not found"
-            )
+        # Get existing template
+        template = await service.get_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
         
-        return result
-    except HTTPException:
-        raise
+        # Update the file content (keep same ID and path)
+        template_path = template.get('content_path')
+        with open(template_path, 'w', encoding='utf-8') as f:
+            f.write(request.content)
+        
+        logger.info(f"Updated template file: {template_path}")
+        
+        # Update metadata in Redis (keep same template_id!)
+        updated_metadata = {
+            'id': template_id,
+            'name': request.name,
+            'type': request.type,
+            'content_path': template_path,
+            'variables': template.get('variables', []),
+            'created_at': template.get('created_at'),
+            'updated_at': str(os.path.getctime(template_path)),
+        }
+        
+        await service.storage.save_template(template_id, updated_metadata)
+        
+        logger.info(f"✅ Template updated: {template_id}")
+        return TemplateResponse(**updated_metadata)
     except Exception as e:
-        logger.error(f"Error updating template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to update template"
-        )
+        logger.error(f"Error updating template: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete(
-    "/{template_id}",
-    summary="Delete template"
-)
+@router.delete("/{template_id}")
 async def delete_template(
     template_id: str,
     service: TemplateService = Depends(get_template_service)
 ):
-    """Delete a template."""
     try:
         success = await service.delete_template(template_id)
-        
-        if not success:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Template {template_id} not found"
-            )
-        
-        return {
-            "success": True,
-            "message": f"Template {template_id} deleted"
-        }
-    except HTTPException:
-        raise
+        return {"success": success, "message": "Template deleted"}
     except Exception as e:
-        logger.error(f"Error deleting template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to delete template"
-        )
+        logger.error(f"Error deleting template: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
