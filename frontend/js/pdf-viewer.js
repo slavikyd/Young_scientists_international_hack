@@ -29,12 +29,6 @@ class PDFViewer {
         const nextBtn = document.getElementById('pdfNextBtn');
         if (prevBtn) prevBtn.addEventListener('click', () => this.prevPage());
         if (nextBtn) nextBtn.addEventListener('click', () => this.nextPage());
-
-        // Setup close button by ID
-        const closePdfBtn = document.getElementById('closePdfViewer');
-        if (closePdfBtn) {
-            closePdfBtn.addEventListener('click', () => this.closePDF());
-        }
     }
 
     async showPDF(url) {

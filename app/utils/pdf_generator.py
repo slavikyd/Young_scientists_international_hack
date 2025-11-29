@@ -2,6 +2,8 @@ import logging
 from typing import Dict, Any
 from jinja2 import Template
 from io import BytesIO
+from string import Template as StringTemplate
+import cairosvg
 import requests
 import os
 
@@ -103,4 +105,33 @@ def generate_pdf_from_html_with_css(template_html: str, variables: Dict[str, Any
         
     except Exception as e:
         logger.error(f"Error generating PDF with CSS: {e}", exc_info=True)
+        raise
+
+
+def create_certificate(svg_template_path: str, data: dict, output_pdf_path: str):
+    """
+    Creates a certificate PDF from an SVG template by filling placeholders with data.
+
+    Args:
+        svg_template_path (str): Path to SVG template file with placeholders like ${name}, ${date}
+        data (dict): Dictionary with keys matching SVG placeholders, e.g. {'name': 'John Doe', 'date': '2025-11-29'}
+        output_pdf_path (str): Path where the generated PDF will be saved
+    """
+    try:
+        # Read the SVG template
+        with open(svg_template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+
+        # Fill placeholders using string.Template (supports ${varname} syntax)
+        template = StringTemplate(template_content)
+        filled_svg = template.substitute(data)
+
+        # Convert filled SVG to PDF using CairoSVG
+        cairosvg.svg2pdf(bytestring=filled_svg.encode('utf-8'), write_to=output_pdf_path)
+        logger.info(f"✅ Created certificate PDF from SVG: {output_pdf_path}")
+    except KeyError as ke:
+        logger.error(f"Missing placeholder for SVG template: {ke}")
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to create certificate from SVG: {e}")
         raise

@@ -13,30 +13,6 @@ class UIManager {
         this.setupPageNavigation();
         this.setupLanguageSelector();
         this.disableAllNextSteps();
-        this.setupGenerateNavigation();
-    }
-
-    setupGenerateNavigation() {
-        const prevBtn = document.getElementById('prevRecipientBtn');
-        const nextBtn = document.getElementById('nextRecipientBtn');
-
-        if (prevBtn) prevBtn.addEventListener('click', () => {
-            const total = AppState.participants.length;
-            if (total === 0) return;
-            const current = AppState.previewIndex || 1;
-            const prev = Math.max(1, current - 1);
-            if (typeof AppState.setPreviewIndex === 'function') AppState.setPreviewIndex(prev); else AppState.previewIndex = prev;
-            this.updateGeneratePreview();
-        });
-
-        if (nextBtn) nextBtn.addEventListener('click', () => {
-            const total = AppState.participants.length;
-            if (total === 0) return;
-            const current = AppState.previewIndex || 1;
-            const next = Math.min(total, current + 1);
-            if (typeof AppState.setPreviewIndex === 'function') AppState.setPreviewIndex(next); else AppState.previewIndex = next;
-            this.updateGeneratePreview();
-        });
     }
 
     setupPageNavigation() {
@@ -45,6 +21,14 @@ class UIManager {
             btn.addEventListener('click', () => {
                 if (btn.classList.contains('disabled')) return;
                 const step = btn.getAttribute('data-step');
+                // Prevent going back to upload from generate or templates pages
+                if (step === 'upload' && (this.currentPage === 'generate' || this.currentPage === 'templates')) {
+                    return;
+                }
+                // Prevent going back to templates from generate page
+                if (step === 'templates' && this.currentPage === 'generate') {
+                    return;
+                }
                 this.goToPage(step);
             });
         });
@@ -171,9 +155,15 @@ class UIManager {
             </tr>
         `).join('');
 
-        const rolesText = roles.length > 0 ? roles.join(', ') : 'недоступно';
-        const placesText = places.length > 0 ? places.join(', ') : 'недоступно';
+        // Show list of roles and places in both sections
+        const rolesText = roles.length > 0 ? roles.join(', ') : '-';
+        const placesText = places.length > 0 ? places.join(', ') : '-';
         
+        // Update in loaded table section
+        document.getElementById('rolesInfoLoaded').textContent = rolesText;
+        document.getElementById('placesInfoLoaded').textContent = placesText;
+        
+        // Also update the format-rules section at the bottom
         document.getElementById('rolesInfo').textContent = rolesText;
         document.getElementById('placesInfo').textContent = placesText;
     }
@@ -184,10 +174,9 @@ class UIManager {
         const certCount = AppState.participants.length;
 
         this.updateTextContent('previewFileName', fileName);
-        const current = (AppState.previewIndex && AppState.previewIndex > 0) ? AppState.previewIndex : 1;
-        this.updateTextContent('previewCertCount', `${current} / ${certCount}`);
+        this.updateTextContent('previewCertCount', certCount);
         if (selectedTemplate) {
-            const templateName = `${selectedTemplate.isDefault ? 'Стандартный' : ''} шаблон ${selectedTemplate.type.toUpperCase()} ${selectedTemplate.type === 'html' ? '</>' : '📄'}`;
+            const templateName = `${selectedTemplate.isDefault ? 'Стандартный' : ''} шаблон ${selectedTemplate.type.toUpperCase()} ${selectedTemplate.type === 'html' ? '</>' : (selectedTemplate.type === 'svg' ? '🖼️' : '📄')}`;
             this.updateTextContent('previewTemplateName', templateName);
         }
 
@@ -263,34 +252,28 @@ class UIManager {
                 htmlPreview.classList.remove('hidden');
                 if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
             }
-        } else if (template.type === 'pdf') {
-            // For PDF templates we try to open the PDF if available (not always possible in current mock setup)
-            // If template.content contains a filename and templatesManager has the file stored, try to show it via pdfViewer
-            if (window.pdfViewer && template.content) {
-                // Try to resolve a Blob URL via templatesManager.loadedFile if available
-                // Best-effort: search templates list for a matching uploaded file name
-                const t = AppState.templates.find(tpl => tpl.id === AppState.selectedTemplate);
-                if (t && t.content && t.content.endsWith('.pdf')) {
-                    // If content looks like a URL, try to load it in PDF viewer
-                    if (t.content.startsWith('http')) {
-                        window.pdfViewer.showPDF(t.content);
-                        if (pdfViewerDiv) pdfViewerDiv.classList.remove('hidden');
-                        if (htmlPreview) htmlPreview.classList.add('hidden');
-                    } else {
-                        // No reliable URL in mock; show notice instead
-                        if (htmlPreview) {
-                            htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен для этого шаблона в режиме эмуляции.</div>';
-                            htmlPreview.classList.remove('hidden');
-                            if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
-                        }
-                    }
+        } else if (template.type === 'svg') {
+            // For SVG templates, display the content
+            if (template.content) {
+                // If content is inline SVG markup, insert it directly
+                if (template.content.trim().startsWith('<svg')) {
+                    htmlPreview.innerHTML = template.content;
+                    htmlPreview.classList.remove('hidden');
+                    if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                } else if (template.content.startsWith('blob:') || template.content.startsWith('http')) {
+                    // If it's a blob URL or HTTP URL, embed it using <object> tag
+                    htmlPreview.innerHTML = `<div style="text-align:center;padding:20px;"><object data="${template.content}" type="image/svg+xml" style="max-width:100%;height:auto;">Ваш браузер не поддерживает просмотр SVG.</object></div>`;
+                    htmlPreview.classList.remove('hidden');
+                    if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
                 } else {
-                    if (htmlPreview) {
-                        htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен.</div>';
-                        htmlPreview.classList.remove('hidden');
-                        if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
-                    }
+                    htmlPreview.innerHTML = '<div class="preview-placeholder">Предпросмотр SVG недоступен.</div>';
+                    htmlPreview.classList.remove('hidden');
+                    if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
                 }
+            } else {
+                htmlPreview.innerHTML = '<div class="preview-placeholder">SVG шаблон пуст.</div>';
+                htmlPreview.classList.remove('hidden');
+                if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
             }
         }
     }

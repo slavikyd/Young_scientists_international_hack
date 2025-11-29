@@ -101,6 +101,15 @@ html, body {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.header-title {
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
 .header-spacer {
   flex: 1;
 }
@@ -755,7 +764,7 @@ html, body {
 .modal-content {
   background-color: var(--color-white);
   border-radius: var(--radius-lg);
-  max-width: 600px;
+  max-width: 100%;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1097,4 +1106,17 @@ html, body {
 .template-menu-item.delete:hover {
   background-color: #ffebee;
   color: #c62828;
+}
+
+.template-input-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.loaded-file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
