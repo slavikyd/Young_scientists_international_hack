@@ -187,7 +187,7 @@ class UIManager {
         const current = (AppState.previewIndex && AppState.previewIndex > 0) ? AppState.previewIndex : 1;
         this.updateTextContent('previewCertCount', `${current} / ${certCount}`);
         if (selectedTemplate) {
-            const templateName = `${selectedTemplate.isDefault ? 'Стандартный' : ''} шаблон ${selectedTemplate.type.toUpperCase()} ${selectedTemplate.type === 'html' ? '</>' : '📄'}`;
+            const templateName = `${selectedTemplate.isDefault ? 'Стандартный' : ''} шаблон ${selectedTemplate.type.toUpperCase()} ${selectedTemplate.type === 'html' ? '</>' : (selectedTemplate.type === 'svg' ? '🖼️' : '📄')}`;
             this.updateTextContent('previewTemplateName', templateName);
         }
 
@@ -263,30 +263,41 @@ class UIManager {
                 htmlPreview.classList.remove('hidden');
                 if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
             }
-        } else if (template.type === 'pdf') {
+        } else if (template.type === 'svg') {
             // For PDF templates we try to open the PDF if available (not always possible in current mock setup)
             // If template.content contains a filename and templatesManager has the file stored, try to show it via pdfViewer
             if (window.pdfViewer && template.content) {
                 // Try to resolve a Blob URL via templatesManager.loadedFile if available
                 // Best-effort: search templates list for a matching uploaded file name
                 const t = AppState.templates.find(tpl => tpl.id === AppState.selectedTemplate);
-                if (t && t.content && t.content.endsWith('.pdf')) {
+                    if (t && t.content && (t.content.endsWith('.pdf') || t.content.trim().startsWith('<svg') || t.content.endsWith('.svg'))) {
                     // If content looks like a URL, try to load it in PDF viewer
-                    if (t.content.startsWith('http')) {
-                        window.pdfViewer.showPDF(t.content);
-                        if (pdfViewerDiv) pdfViewerDiv.classList.remove('hidden');
-                        if (htmlPreview) htmlPreview.classList.add('hidden');
-                    } else {
-                        // No reliable URL in mock; show notice instead
-                        if (htmlPreview) {
-                            htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен для этого шаблона в режиме эмуляции.</div>';
+                        // If URL or blob: show in object tag for SVG or via PDF viewer for PDF
+                        if (t.content.startsWith('http') || t.content.startsWith('blob:')) {
+                            if (t.content.endsWith('.pdf')) {
+                                window.pdfViewer.showPDF(t.content);
+                                if (pdfViewerDiv) pdfViewerDiv.classList.remove('hidden');
+                                if (htmlPreview) htmlPreview.classList.add('hidden');
+                            } else {
+                                // SVG URL/blob
+                                htmlPreview.innerHTML = `<div style="text-align:center;padding:20px;"><object data="${t.content}" type="image/svg+xml" style="max-width:100%;height:auto;">Ваш браузер не поддерживает просмотр SVG.</object></div>`;
+                                htmlPreview.classList.remove('hidden');
+                                if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                            }
+                        } else if (t.content.trim().startsWith('<svg')) {
+                            htmlPreview.innerHTML = t.content;
                             htmlPreview.classList.remove('hidden');
                             if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                        } else {
+                            if (htmlPreview) {
+                                htmlPreview.innerHTML = '<div class="preview-placeholder">Предпросмотр SVG недоступен.</div>';
+                                htmlPreview.classList.remove('hidden');
+                                if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
+                            }
                         }
-                    }
                 } else {
                     if (htmlPreview) {
-                        htmlPreview.innerHTML = '<div class="preview-placeholder">PDF предпросмотр недоступен.</div>';
+                        htmlPreview.innerHTML = '<div class="preview-placeholder">PDF/SGV предпросмотр недоступен.</div>';
                         htmlPreview.classList.remove('hidden');
                         if (pdfViewerDiv) pdfViewerDiv.classList.add('hidden');
                     }

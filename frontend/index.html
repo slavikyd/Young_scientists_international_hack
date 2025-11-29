@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@100;300;400;500;600;700;900&display=swap">
     <link rel="stylesheet" href="styles/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
     <!-- Sticky Header -->
@@ -266,7 +266,7 @@
                     <div class="upload-icon">📄</div>
                     <div class="upload-text">Загрузите файл</div>
                     <div class="upload-subtext">Перетащите сюда файл или нажмите для выбора</div>
-                    <div class="upload-formats">Поддерживаемые форматы: HTML, PDF</div>
+                    <div class="upload-formats">Поддерживаемые форматы: HTML, SVG</div>
                 </div>
 
                 <div id="codeEditorSection" class="code-editor-section hidden">
@@ -302,7 +302,7 @@
 
     <!-- Hidden file inputs -->
     <input type="file" id="fileInput" accept=".csv,.xlsx" style="display: none;">
-    <input type="file" id="templateFileInput" accept=".html,.pdf" style="display: none;">
+    <input type="file" id="templateFileInput" accept=".html,.svg" style="display: none;">
 
     <!-- Scripts -->
     <script src="js/state.js"></script>

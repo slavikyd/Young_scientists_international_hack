@@ -71,14 +71,14 @@ class TemplatesManager {
                 isDefault: true,
                 isStandard: true
             },
-            {
-                name: 'Стандартный шаблон PDF',
-                type: 'pdf',
-                description: 'PDF сертификат',
-                content: null,
-                isDefault: true,
-                isStandard: true
-            }
+                {
+                    name: 'Стандартный шаблон SVG',
+                    type: 'svg',
+                    description: 'SVG сертификат',
+                    content: null,
+                    isDefault: true,
+                    isStandard: true
+                }
         ];
 
         defaults.forEach(t => {
@@ -205,14 +205,14 @@ class TemplatesManager {
         document.getElementById('templateDesc').value = template.description || '';
         document.getElementById('templateTypeDisplay').textContent = template.type.toUpperCase();
         
-        if (template.type === 'pdf') {
+        if (template.type === 'svg') {
             document.getElementById('codeEditorSection').classList.add('hidden');
             document.getElementById('fileUploadArea').classList.remove('hidden');
             document.getElementById('loadedFileInfo').classList.add('hidden');
             document.getElementById('templateInputButtons').style.display = 'none';
             // If template already has a blob URL stored, set as loadedFile for editing
             if (template.content && (template.content.startsWith('blob:') || template.content.startsWith('http'))) {
-                this.loadedFile = { file: null, type: 'pdf', blobUrl: template.content, name: template.contentName || '' };
+                this.loadedFile = { file: null, type: 'svg', blobUrl: template.content, name: template.contentName || '' };
                 if (this.loadedFile.name) document.getElementById('loadedFileName').textContent = `Файл ${this.loadedFile.name} загружен`;
                 document.getElementById('loadedFileInfo').classList.remove('hidden');
                 document.getElementById('fileUploadArea').classList.add('hidden');
@@ -234,79 +234,25 @@ class TemplatesManager {
         if (!template) return;
         const container = document.getElementById('fullPreviewContainer');
 
-        if (template.type === 'pdf') {
+        if (template.type === 'svg') {
             // For PDF templates, use PDF.js viewer for blob URLs
             try {
-                console.log('📄 Opening PDF template for preview:', templateId);
-                
-                // Ensure PDF.js worker is configured
-                if (typeof pdfjsLib !== 'undefined') {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-                    console.log('✓ PDF.js worker configured');
-                } else {
-                    throw new Error('PDF.js не загружен');
-                }
-                
-                container.innerHTML = '<div class="pdf-modal-viewer"><div style="text-align: center; padding: 20px;">Загрузка PDF...</div><canvas id="pdfModalCanvas" style="display: block; margin: 0 auto; max-width: 100%; max-height: 500px;"></canvas><div id="pdfModalControls" style="padding: 10px; text-align: center; background-color: var(--color-border); display: flex; justify-content: space-between; align-items: center;"><button class="btn btn-outline" id="pdfModalPrevBtn" style="padding: 6px 12px; font-size: 12px;">← Предыдущая</button><span id="pdfModalPageInfo">1 / 1</span><button class="btn btn-outline" id="pdfModalNextBtn" style="padding: 6px 12px; font-size: 12px;">Следующая →</button></div></div>';
-                
+                console.log('🌄 Opening SVG template for preview:', templateId);
                 document.getElementById('previewModal').classList.remove('hidden');
-                
-                console.log('📄 Template content type:', typeof template.content, 'length:', template.content?.length);
-                
-                // Load PDF with PDF.js
-                const pdf = await pdfjsLib.getDocument(template.content).promise;
-                console.log('✓ PDF loaded, total pages:', pdf.numPages);
-                
-                let currentPage = 1;
-                const totalPages = pdf.numPages;
-                
-                const renderPage = async (pageNum) => {
-                    try {
-                        console.log('Rendering page:', pageNum);
-                        const page = await pdf.getPage(pageNum);
-                        const canvas = document.getElementById('pdfModalCanvas');
-                        if (!canvas) {
-                            console.error('❌ Canvas not found');
-                            return;
-                        }
-                        
-                        const ctx = canvas.getContext('2d');
-                        const viewport = page.getViewport({ scale: 1.5 });
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        
-                        await page.render({
-                            canvasContext: ctx,
-                            viewport: viewport
-                        }).promise;
-                        
-                        currentPage = pageNum;
-                        const pageInfo = document.getElementById('pdfModalPageInfo');
-                        if (pageInfo) pageInfo.textContent = `${currentPage} / ${totalPages}`;
-                        console.log('✓ Page rendered:', pageNum);
-                    } catch (error) {
-                        console.error('❌ Error rendering page:', error);
-                    }
-                };
-                
-                await renderPage(1);
-                
-                // Setup navigation buttons
-                const prevBtn = document.getElementById('pdfModalPrevBtn');
-                const nextBtn = document.getElementById('pdfModalNextBtn');
-                
-                if (prevBtn) {
-                    prevBtn.onclick = async () => {
-                        if (currentPage > 1) await renderPage(currentPage - 1);
-                    };
+
+                // If template.content is inline SVG markup, insert it directly.
+                if (template.content && template.content.trim().startsWith('<svg')) {
+                    container.innerHTML = template.content;
+                    return;
                 }
-                if (nextBtn) {
-                    nextBtn.onclick = async () => {
-                        if (currentPage < totalPages) await renderPage(currentPage + 1);
-                    };
+
+                // If it's a blob URL or HTTP URL, embed it using <object> or <img>
+                if (template.content && (template.content.startsWith('blob:') || template.content.startsWith('http'))) {
+                    container.innerHTML = `<div style="text-align:center;padding:20px;"><object data="${template.content}" type="image/svg+xml" style="max-width:100%;height:auto;">Ваш браузер не поддерживает просмотр SVG.</object></div>`;
+                    return;
                 }
-                
-                return;
+
+                container.innerHTML = '<div class="preview-placeholder">Невозможно отобразить SVG шаблон</div>';
             } catch (error) {
                 console.error('❌ Error displaying PDF:', error);
                 container.innerHTML = '<div class="preview-placeholder">Ошибка при загрузке PDF: ' + error.message + '</div>';
@@ -406,13 +352,20 @@ class TemplatesManager {
         const file = e.target.files[0];
         if (!file) return;
 
-        const type = file.name.endsWith('.pdf') ? 'pdf' : 'html';
+        const type = file.name.toLowerCase().endsWith('.svg') ? 'svg' : 'html';
         document.getElementById('templateTypeDisplay').textContent = type.toUpperCase();
         const blobUrl = URL.createObjectURL(file);
         this.loadedFile = { file, type, blobUrl };
 
-        if (type === 'pdf') {
-            document.getElementById('codeEditorSection').classList.add('hidden');
+        if (type === 'svg') {
+            // For SVG we will read it as text into the code editor for preview/editing
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                document.getElementById('templateContent').value = evt.target.result;
+                document.getElementById('codeEditorSection').classList.remove('hidden');
+                this.updateCodePreview();
+            };
+            reader.readAsText(file);
         } else {
             const reader = new FileReader();
             reader.onload = (evt) => {
@@ -454,8 +407,8 @@ class TemplatesManager {
             return;
         }
 
-        if (type === 'pdf' && !this.loadedFile) {
-            alert('Пожалуйста, загрузите PDF файл');
+        if (type === 'svg' && !this.loadedFile && !content) {
+            alert('Пожалуйста, загрузите SVG файл или вставьте SVG код');
             return;
         }
 
@@ -471,9 +424,14 @@ class TemplatesManager {
 
         if (type === 'html') {
             template.content = content;
-        } else if (type === 'pdf' && this.loadedFile) {
-            // store blob URL for preview
-            template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
+        } else if (type === 'svg' && this.loadedFile) {
+            // store inline SVG content if possible (read file as text already done on load)
+            if (document.getElementById('templateContent').value.trim()) {
+                template.content = document.getElementById('templateContent').value;
+            } else {
+                // fallback to blob URL
+                template.content = this.loadedFile.blobUrl || (this.loadedFile.file ? URL.createObjectURL(this.loadedFile.file) : null);
+            }
             template.contentName = this.loadedFile.file ? this.loadedFile.file.name : null;
         }
 
