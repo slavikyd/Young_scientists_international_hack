@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     # Data Retention
     SESSION_EXPIRATION: int = 3600  # 1 hour in seconds
     TEMP_FILES_RETENTION: int = 86400  # 24 hours in seconds
+
+    # MinIO / S3
+    MINIO_URL: str = "http://minio:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "certificates"
     
     class Config:
         env_file = ".env"
