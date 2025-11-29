@@ -13,6 +13,9 @@ const AppState = {
     emailsEnabled: true,
     recipientCount: 90,
     previewIndex: 1,
+    eventName: '',
+    eventLocation: '',
+    issueDate: new Date().toISOString().split('T')[0],
     
     // setters
     setUploadedFile(file) {
@@ -64,6 +67,18 @@ const AppState = {
         this.recipientCount = count;
     },
 
+    setEventName(name) {
+        this.eventName = name;
+    },
+
+    setEventLocation(location) {
+        this.eventLocation = location;
+    },
+
+    setIssueDate(date) {
+        this.issueDate = date;
+    },
+
     setPreviewIndex(index) {
         this.previewIndex = index;
     },
@@ -76,6 +91,9 @@ const AppState = {
         this.selectedTemplate = null;
         this.emailsEnabled = true;
         this.recipientCount = 90;
+        this.eventName = '';
+        this.eventLocation = '';
+        this.issueDate = new Date().toISOString().split('T')[0];
     }
 };
 

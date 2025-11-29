@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 import logging
 import io
@@ -47,6 +47,8 @@ async def generate_certificates(
             - send_email: Whether to email certificates
     """
     try:
+        logger.info(f"📨 Certificate generation request received: {request.dict()}")
+        
         # Generate certificates for all participants
         result = await service.generate_certificates(
             template_id=request.template_id,
@@ -70,7 +72,7 @@ async def generate_certificates(
         logger.warning(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error generating certificates: {e}")
+        logger.error(f"Error generating certificates: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Failed to generate certificates"

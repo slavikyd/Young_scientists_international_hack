@@ -130,15 +130,63 @@ class UploadManager {
         }
 
         try {
-            const response = await api.uploadParticipants(file);
+            let participants = [];
+            
+            // Parse file locally
+            if (file.name.endsWith('.xlsx')) {
+                // Parse XLSX with XLSX library
+                if (typeof XLSX === 'undefined') {
+                    throw new Error('XLSX библиотека ещё не загружена');
+                }
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(worksheet);
+                
+                // Convert data to expected format
+                participants = data.map(row => {
+                    const participant = {};
+                    Object.keys(row).forEach(key => {
+                        const lowerKey = key.toLowerCase().trim();
+                        participant[lowerKey] = String(row[key] || '').trim();
+                    });
+                    return participant;
+                });
+                
+                console.log('📊 XLSX parsed, participants:', participants.length);
+            } else {
+                // Parse CSV
+                const text = await file.text();
+                participants = api.parseCSV(text);
+                console.log('📊 CSV parsed, participants:', participants.length);
+            }
+            
+            if (participants.length === 0) {
+                throw new Error('Файл не содержит участников');
+            }
+            
+            // Update AppState with parsed data
+            const analysis = api.analyzeParticipants(participants);
+            AppState.setUploadedFile(file);
+            AppState.setParticipants(participants);
+            AppState.setRolesUsed(analysis.roles);
+            AppState.setPlacesUsed(analysis.places);
+            
+            // Also try to upload to backend if available
+            try {
+                await api.uploadParticipants(file);
+            } catch (e) {
+                console.warn('⚠️ Backend upload failed, using local parsing:', e.message);
+            }
             
             this.uploadedFile = file;
-            ui.showStatus('uploadStatus', `✓ Успешно загружено ${response.participants.length} участников!`, 'success');
+            ui.showStatus('uploadStatus', `✓ Успешно загружено ${participants.length} участников!`, 'success');
             
             ui.hideElement('fileFormatInfo');
             
             ui.updateFilePreview(
-                response.participants,
+                participants,
                 file.name,
                 AppState.rolesUsed,
                 AppState.placesUsed
@@ -157,6 +205,7 @@ class UploadManager {
             
         } catch (error) {
             ui.showStatus('uploadStatus', `Ошибка: ${error.message}`, 'error');
+            console.error('❌ File upload error:', error);
         }
     }
 

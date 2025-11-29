@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 
 
 from app.storage.redis_storage import RedisStorage
+from app.storage.minio_storage import MinIOStorage
 from app.utils.exceptions import NotFoundError, ValidationError
 
 
@@ -23,6 +24,11 @@ class TemplateService:
 
     def __init__(self):
         self.storage = RedisStorage()
+        # MinIO storage for template files
+        try:
+            self.minio = MinIOStorage()
+        except Exception:
+            self.minio = None
         os.makedirs(TEMPLATES_DIR, exist_ok=True)
 
     async def create_template(self, name: str, content: str, template_type: str = 'html') -> Dict[str, Any]:
@@ -43,21 +49,30 @@ class TemplateService:
             template_id = str(uuid.uuid4())
             template_path = os.path.join(TEMPLATES_DIR, f"{template_id}.html")
             
-            # Write template with UTF-8 encoding (Cyrillic support!)
+            # Write template locally for compatibility (still keep local copy)
             with open(template_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            
-            # Store metadata in Redis
+
+            # Upload template HTML to MinIO if available
+            minio_key = None
+            try:
+                if self.minio:
+                    minio_key = self.minio.upload_template(template_id, content.encode('utf-8'))
+            except Exception:
+                logger.exception("MinIO upload failed - continuing with local file")
+
+            # Store metadata in Redis (content_path points to MinIO key if uploaded, otherwise local path)
+            content_path_value = minio_key if minio_key else template_path
             template_metadata = {
                 'id': template_id,
                 'name': name,  # UTF-8 Cyrillic name
                 'type': template_type,
-                'content_path': template_path,
+                'content_path': content_path_value,
                 'variables': [],
                 'created_at': str(os.path.getctime(template_path)),
                 'updated_at': None
             }
-            
+
             await self.storage.save_template(template_id, template_metadata)
 
             
@@ -155,24 +170,34 @@ class TemplateService:
                     modified_template = modified_template.replace(f"src='{img_path}'", f"src='{data_uri}'")
                     modified_template = modified_template.replace(img_path, data_uri)
                 
-                # Save modified template
+                # Save modified template locally
                 template_path = os.path.join(template_folder, 'template.html')
                 with open(template_path, 'w', encoding='utf-8') as f:
                     f.write(modified_template)
-                
+
+                # Upload HTML to MinIO if available
+                minio_key = None
+                try:
+                    if self.minio:
+                        minio_key = self.minio.upload_template(template_id, modified_template.encode('utf-8'))
+                except Exception:
+                    logger.exception("MinIO upload failed for ZIP template - continuing with local file")
+
+                content_path_value = minio_key if minio_key else template_path
+
                 # Store metadata
                 template_metadata = {
                     'id': template_id,
                     'name': template_name,
                     'type': 'html',
-                    'content_path': template_path,
+                    'content_path': content_path_value,
                     'variables': [],
                     'has_images': len(image_paths) > 0,
                     'image_count': len(image_paths),
                     'created_at': str(os.path.getctime(template_path)),
                     'updated_at': None
                 }
-                
+
                 await self.storage.save_template(template_id, template_metadata)
 
                 

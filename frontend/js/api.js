@@ -45,58 +45,16 @@ class CertificateAPI {
         };
     }
 
-    async uploadParticipants(file) {
-        if (this.mockMode) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const text = e.target.result;
-                        const participants = this.parseCSV(text);
-
-                        if (participants.length === 0) {
-                            throw new Error('Файл не содержит участников');
-                        }
-
-                        const analysis = this.analyzeParticipants(participants);
-                        AppState.setUploadedFile(file);
-                        AppState.setParticipants(participants);
-                        AppState.setRolesUsed(analysis.roles);
-                        AppState.setPlacesUsed(analysis.places);
-
-                        resolve({
-                            success: true,
-                            participants: participants,
-                            fileName: file.name
-                        });
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                reader.onerror = () => reject(new Error('Ошибка при чтении файла'));
-                reader.readAsText(file);
-            });
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        return fetch(`${this.baseURL}/participants/upload`, {
+    async generateCertificates(params) {
+        return fetch(`${API_BASE_URL}/certificates/generate`, {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
         }).then(res => this.handleResponse(res));
     }
 
-    async generateCertificates(params) {
-        if (this.mockMode) {
-            return Promise.resolve({
-                success: true,
-                certificateCount: AppState.participants.length,
-                batchId: Date.now().toString()
-            });
-        }
-
-        return fetch(`${this.baseURL}/certificates/generate`, {
+    async uploadTemplate(params) {
+        return fetch(`${API_BASE_URL}/templates`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params),

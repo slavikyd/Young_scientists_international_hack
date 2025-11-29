@@ -97,24 +97,34 @@ async def update_template(
         
         # Update the file content (keep same ID and path)
         template_path = template.get('content_path')
-        with open(template_path, 'w', encoding='utf-8') as f:
-            f.write(request.content)
-        
-        logger.info(f"Updated template file: {template_path}")
-        
+        # Update the file content. content_path may be a MinIO key or local path.
+        # If it's a MinIO key (starts with 'templates/'), upload the new content to MinIO
+        updated_content_path = template_path
+        if service and getattr(service, 'minio', None) and isinstance(template_path, str) and template_path.startswith('templates/'):
+            # upload to MinIO under same key
+            service.minio.upload_template(template_id, request.content.encode('utf-8'), object_name=template_path.split('/', 2)[-1])
+            updated_content_path = template_path
+        else:
+            # write local file
+            with open(template_path, 'w', encoding='utf-8') as f:
+                f.write(request.content)
+            updated_content_path = template_path
+
+        logger.info(f"Updated template file: {updated_content_path}")
+
         # Update metadata in Redis (keep same template_id!)
         updated_metadata = {
             'id': template_id,
             'name': request.name,
             'type': request.type,
-            'content_path': template_path,
+            'content_path': updated_content_path,
             'variables': template.get('variables', []),
             'created_at': template.get('created_at'),
-            'updated_at': str(os.path.getctime(template_path)),
+            'updated_at': str(os.path.getctime(template_path)) if os.path.exists(template_path) else None,
         }
-        
+
         await service.storage.save_template(template_id, updated_metadata)
-        
+
         logger.info(f"✅ Template updated: {template_id}")
         return TemplateResponse(**updated_metadata)
     except Exception as e:

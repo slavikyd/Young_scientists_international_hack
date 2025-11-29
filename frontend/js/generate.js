@@ -19,6 +19,19 @@ class GenerateManager {
             ui.updateGeneratePreview();
         });
 
+        // Event details handlers
+        document.getElementById('eventNameInput').addEventListener('change', (e) => {
+            AppState.setEventName(e.target.value);
+        });
+
+        document.getElementById('eventLocationInput').addEventListener('change', (e) => {
+            AppState.setEventLocation(e.target.value);
+        });
+
+        document.getElementById('issueDateInput').addEventListener('change', (e) => {
+            AppState.setIssueDate(e.target.value);
+        });
+
         document.getElementById('recipientsCountInput').addEventListener('input', (e) => {
             let value = parseInt(e.target.value) || 0;
             
@@ -74,10 +87,35 @@ class GenerateManager {
         document.getElementById('generateBtn').style.display = 'none';
         
         try {
+            // Get the selected template
+            const selectedTemplate = AppState.getSelectedTemplate();
+            if (!selectedTemplate) {
+                throw new Error('Template not found');
+            }
+
+            // First, upload/save the template to backend if needed
+            let backendTemplateId = selectedTemplate.id;
+            
+            // Check if this is a new template (not yet on backend)
+            if (selectedTemplate.id && selectedTemplate.id.toString().includes('.')) {
+                // This looks like a client-generated ID, upload template to backend
+                console.log('Uploading template to backend...');
+                const uploadResponse = await api.uploadTemplate({
+                    name: selectedTemplate.name,
+                    content: selectedTemplate.content,
+                    type: selectedTemplate.type || 'html'
+                });
+                backendTemplateId = uploadResponse.id;
+                console.log('Template uploaded, ID:', backendTemplateId);
+            }
+
+            // Now generate certificates with backend template ID
             const response = await api.generateCertificates({
-                templateId: AppState.selectedTemplate,
-                sendEmails: AppState.emailsEnabled,
-                recipientsCount: recipientsCount
+                template_id: backendTemplateId,
+                event_name: AppState.eventName || 'Certificate Event',
+                event_location: AppState.eventLocation || 'Online',
+                issue_date: AppState.issueDate || new Date().toISOString().split('T')[0],
+                send_email: AppState.emailsEnabled
             });
 
             ui.showStatus('generateStatus', 'Генерация завершена!', 'success');

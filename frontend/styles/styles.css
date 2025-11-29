@@ -536,6 +536,28 @@ html, body {
   color: var(--color-text);
 }
 
+.setting-input {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  min-width: 200px;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast);
+}
+
+.setting-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background-color: var(--color-background);
+}
+
+.setting-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
 /* Toggle Switch */
 .toggle-switch {
   position: relative;

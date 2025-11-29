@@ -10,6 +10,10 @@ function initializeApp() {
         }
         console.log('✓ AppState ready');
 
+        // Set default issue date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('issueDateInput').value = today;
+
         // Initialize UI manager first (sets up navigation, pages, etc.)
         if (!window.ui) {
             console.log('📍 Initializing UIManager...');
