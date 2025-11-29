@@ -88,18 +88,19 @@ class UploadManager {
                 const ws = XLSX.utils.aoa_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Participants");
-                XLSX.writeFile(wb, `example_participants.${format}`);
+                XLSX.writeFile(wb, `example_participants.xlsx`);
             } catch (error) {
                 alert(`Ошибка при создании Excel файла: ${error.message}`);
                 console.error('XLSX error:', error);
             }
         } else {
-            // CSV download
-            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            // CSV download with UTF-8 BOM for proper encoding in Excel
+            const BOM = '\uFEFF'; // UTF-8 BOM
+            const blob = new Blob([BOM + csvData], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `example_participants.${format}`;
+            a.download = `example_participants.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
         }

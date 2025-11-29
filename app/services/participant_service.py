@@ -50,20 +50,67 @@ class ParticipantService:
             # Save each participant
             saved_ids = []
             for participant in participants:
-                # Validate email if present
-                if participant.get('email') and not validate_email(participant['email']):
-                    logger.warning(f"Invalid email skipped: {participant.get('email')}")
+                # Normalize field names (handle various CSV column names)
+                # Try to find 'full_name' from various possible column names
+                full_name = (
+                    participant.get('full_name') or
+                    participant.get('ФИО') or
+                    participant.get('фио') or
+                    participant.get('name') or
+                    participant.get('Name') or
+                    participant.get('fio') or
+                    participant.get('Фио') or
+                    ''
+                )
+                
+                if not full_name:
+                    logger.warning(f"Skipping participant without name: {participant}")
                     continue
+                
+                # Normalize other fields too
+                email = (
+                    participant.get('email') or
+                    participant.get('Email') or
+                    participant.get('почта') or
+                    participant.get('Почта') or
+                    ''
+                )
+                
+                role = (
+                    participant.get('role') or
+                    participant.get('Role') or
+                    participant.get('роль') or
+                    participant.get('Роль') or
+                    'participant'
+                )
+                
+                place = (
+                    participant.get('place') or
+                    participant.get('Place') or
+                    participant.get('место') or
+                    participant.get('Место')
+                )
+                
+                # Validate email if present
+                if email and not validate_email(email):
+                    logger.warning(f"Invalid email for {full_name}: {email}")
+                    email = ''
 
                 # Generate ID
                 participant_id = str(uuid.uuid4())
 
-                # Add metadata
-                participant['id'] = participant_id
-                participant['uploaded_at'] = datetime.utcnow().isoformat()
+                # Create normalized participant object
+                normalized_participant = {
+                    'id': participant_id,
+                    'full_name': full_name,
+                    'email': email,
+                    'role': role,
+                    'place': place,
+                    'uploaded_at': datetime.utcnow().isoformat()
+                }
 
                 # Save to Redis with 1 hour TTL
-                await self.storage.save_participant(participant_id, participant, ttl=3600)
+                await self.storage.save_participant(participant_id, normalized_participant, ttl=3600)
                 saved_ids.append(participant_id)
 
             logger.info(f"Saved {len(saved_ids)} participants to Redis")
@@ -86,9 +133,15 @@ class ParticipantService:
             result = []
             for p in participants:
                 try:
+                    # Ensure full_name is not empty
+                    full_name = p.get('full_name', '')
+                    if not full_name:
+                        logger.warning(f"Participant {p.get('id')} has no full_name")
+                        continue
+                    
                     result.append(ParticipantResponse(
                         id=p.get('id'),
-                        full_name=p.get('full_name', ''),
+                        full_name=full_name,
                         email=p.get('email', ''),
                         role=p.get('role', 'participant'),
                         place=p.get('place')

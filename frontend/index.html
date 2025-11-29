@@ -14,6 +14,7 @@
     <header class="header-bar">
         <div class="header-container">
             <button class="header-logo-btn" title="Документация">📋</button>
+            <h1 class="header-title">Генератор GlobalCertHub</h1>
             <div class="header-spacer"></div>
             <div class="language-selector">
                 <button class="lang-btn active" data-lang="ru">RU</button>
@@ -24,11 +25,6 @@
     </header>
 
     <div class="main-container">
-        <div class="page-header">
-            <h1>Генератор GlobalCertHub</h1>
-            <p>Загрузите участников, управляйте шаблонами и создавайте персонализированные сертификаты</p>
-        </div>
-
         <!-- Step Navigation -->
         <div class="step-navigation">
             <button class="step-btn active" data-step="upload">
@@ -53,7 +49,7 @@
             <div class="page active" id="upload-page" data-page="upload">
                 <div class="page-content">
                     <div class="page-header-title">
-                        <h2>Загрузка файла</h2>
+                        <h2>Добавьте таблицу</h2>
                         <button class="delete-btn hidden" id="clearUploadBtn" title="Очистить">🗑️</button>
                     </div>
 
@@ -61,6 +57,10 @@
                         <div class="upload-icon">📄</div>
                         <div class="upload-text">Загрузите файл</div>
                         <div class="upload-subtext">Перетащите сюда файл или загрузите его, нажав на область</div>
+                    </div>
+
+                    <div class="page-navigation" style="margin-bottom:16px;">
+                        <button class="btn btn-next" id="nextFromUpload" disabled>Далее →</button>
                     </div>
 
                     <div id="uploadStatus" class="upload-status hidden"></div>
@@ -81,6 +81,10 @@
                             <tbody></tbody>
                         </table>
                         <div id="fileStats" class="file-stats"></div>
+                        <div class="format-rules" style="margin-top: 16px;">
+                            <p><strong>Добавленные роли:</strong> <span id="rolesInfoLoaded">—</span></p>
+                            <p><strong>Добавленные места:</strong> <span id="placesInfoLoaded">—</span></p>
+                        </div>
                     </div>
 
                     <div class="download-template-buttons">
@@ -91,10 +95,6 @@
                         <button class="btn btn-download" id="downloadCsv">
                             <span>.CSV</span>
                         </button>
-                    </div>
-
-                    <div class="page-navigation">
-                        <button class="btn btn-next" id="nextFromUpload" disabled>Далее →</button>
                     </div>
 
                     <div id="fileFormatInfo" class="file-format-info">
@@ -135,7 +135,7 @@
             <div class="page" id="templates-page" data-page="templates">
                 <div class="page-content">
                     <div class="page-header-title">
-                        <h2>Выбор шаблона</h2>
+                        <h2>Примените шаблон для сертификата</h2>
                         <button class="btn btn-add-template" id="addTemplateBtn">+ Добавить шаблон</button>
                     </div>
 
@@ -151,7 +151,7 @@
             <div class="page" id="generate-page" data-page="generate">
                 <div class="page-content">
                     <div class="page-header-title">
-                        <h2>Генерация</h2>
+                        <h2>Сгенерируйте сертификаты</h2>
                         <button class="btn btn-back hidden" id="restartBtn">← Начать заново</button>
                     </div>
 
@@ -172,30 +172,22 @@
                             </div>
                             <div class="setting-item">
                                 <span class="setting-label">Название мероприятия</span>
-                                <input type="text" id="eventNameInput" placeholder="например, Annual Science Conference 2024" class="setting-input">
+                                <input type="text" id="eventNameInput" placeholder="например, YSH 2025" class="setting-input">
                             </div>
                             <div class="setting-item">
                                 <span class="setting-label">Место проведения</span>
-                                <input type="text" id="eventLocationInput" placeholder="например, Sirius Federal Territory" class="setting-input">
+                                <input type="text" id="eventLocationInput" placeholder="например, ОЦ Сириус" class="setting-input">
                             </div>
                             <div class="setting-item">
                                 <span class="setting-label">Дата выдачи</span>
                                 <input type="date" id="issueDateInput" class="setting-input">
                             </div>
                             <div class="setting-item">
-                                <span class="setting-label">Проводить рассылку</span>
+                                <span class="setting-label">Проводить рассылку по почте</span>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="sendEmailToggle" checked>
                                     <span class="toggle-slider"></span>
                                 </label>
-                            </div>
-                            <div class="setting-item hidden" id="recipientsCountItem">
-                                <span class="setting-label">Количество получателей</span>
-                                <div class="recipients-input-group">
-                                    <input type="number" id="recipientsCountInput" min="0" value="90" class="recipients-input">
-                                    <span class="recipients-display">/</span>
-                                    <span class="setting-value" id="previewRecipients">90</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -206,7 +198,6 @@
                     <div id="pdfViewerContainer" class="pdf-viewer-container hidden">
                         <div class="pdf-viewer-header">
                             <h3>Предпросмотр сертификата</h3>
-                            <button class="modal-close pdf-viewer-close" id="closePdfViewer">✕</button>
                         </div>
                         <div id="pdfViewer" class="pdf-viewer">
                             <canvas id="pdfCanvas"></canvas>
@@ -222,8 +213,6 @@
                     </div>
 
                     <div style="display:flex; gap:12px; align-items:center; margin-top: 16px;">
-                        <button class="btn btn-outline" id="prevRecipientBtn">← Предыдущий участник</button>
-                        <button class="btn btn-outline" id="nextRecipientBtn">Следующий участник →</button>
                         <div style="flex:1"></div>
                         <button class="btn btn-generate-full" id="generateBtn">Начать генерацию</button>
                     </div>
